@@ -191,6 +191,7 @@
 const state = { q: "", region: "", city: "", train: false, boat: false, active: -1 };
 
 const map = L.map("map", { zoomControl: true }).setView([56.5, 44], 4);
+map.attributionControl.setPrefix("");
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
   attribution: '&copy; OpenStreetMap &copy; CARTO',
   maxZoom: 19

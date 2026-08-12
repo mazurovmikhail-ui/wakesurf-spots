@@ -221,6 +221,7 @@
   <select id="fCity"><option value="">Все города</option></select>
   <span class="chip" id="fTrain">🎓 с обучением</span>
   <span class="chip" id="fBoat">🚤 катер указан</span>
+  <span class="chip" id="fStay">🏠 с проживанием</span>
 </div>
 
 <main>
@@ -231,7 +232,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script>
-const state = { q: "", region: "", city: "", train: false, boat: false, active: -1 };
+const state = { q: "", region: "", city: "", train: false, boat: false, stay: false, active: -1 };
 
 const map = L.map("map", { zoomControl: true }).setView([56.5, 44], 4);
 map.attributionControl.setPrefix("");
@@ -257,8 +258,9 @@ function matches(s) {
   if (state.city && s.city !== state.city) return false;
   if (state.train && !s.training) return false;
   if (state.boat && !(s.boats && s.boats.length)) return false;
+  if (state.stay && !s.stay) return false;
   if (state.q) {
-    const hay = norm([s.name, s.city, s.water, s.address, (s.boats||[]).join(" "), s.notes].join(" "));
+    const hay = norm([s.name, s.city, s.water, s.address, (s.boats||[]).join(" "), s.notes, s.stay].join(" "));
     if (!hay.includes(norm(state.q))) return false;
   }
   return true;
@@ -286,6 +288,7 @@ function cardHTML(s, i) {
   if (s.price) rows.push(`<div class="row"><span class="ico">💸</span><span class="val">${esc(s.price)}</span></div>`);
   if (s.season) rows.push(`<div class="row"><span class="ico">📅</span><span class="val">${esc(s.season)}</span></div>`);
   if (s.training) rows.push(`<div class="row"><span class="ico">🎓</span><span class="val">${esc(s.training)}</span></div>`);
+  if (s.stay) rows.push(`<div class="row"><span class="ico">🏠</span><span class="val">${esc(s.stay)}</span></div>`);
   if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
   if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
   const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">☀️ Прогноз</button>` : "";
@@ -431,8 +434,14 @@ async function toggleForecast(ev, i) {
       ? `🪞 Штилевые окна (ветер ≤ 3 м/с): ${windows.join(", ")}`
       : `Штилевых окон в ближайшие 3 дня не видно — ловите раннее утро`;
 
+    const wg = `https://www.windguru.cz/map/?lat=${s.lat}&lon=${s.lon}&zoom=11`;
+    const wy = `https://www.windy.com/${s.lat}/${s.lon}?${s.lat},${s.lon},11`;
     const html = `<div class="fc-days">${cells}</div>
       <div class="fc-glass">${glass}</div>
+      <div class="links" style="margin-top:8px">
+        <a class="sec" href="${wg}" target="_blank" rel="noopener">Windguru</a>
+        <a class="sec" href="${wy}" target="_blank" rel="noopener">Windy</a>
+      </div>
       <div class="fc-note">💨 макс/порывы, м/с · прогноз Open-Meteo для точки спота</div>`;
     fcCache[i] = html;
     box.innerHTML = html;
@@ -470,6 +479,7 @@ document.getElementById("fRegion").addEventListener("change", e => {
 document.getElementById("fCity").addEventListener("change", e => { state.city = e.target.value; render(); });
 document.getElementById("fTrain").addEventListener("click", e => { state.train = !state.train; e.target.classList.toggle("on", state.train); render(); });
 document.getElementById("fBoat").addEventListener("click", e => { state.boat = !state.boat; e.target.classList.toggle("on", state.boat); render(); });
+document.getElementById("fStay").addEventListener("click", e => { state.stay = !state.stay; e.target.classList.toggle("on", state.stay); render(); });
 
 initFilters();
 render();

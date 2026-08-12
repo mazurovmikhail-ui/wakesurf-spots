@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Вейксёрф-споты России</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #0d1b24;
+    --panel: #14252f;
+    --panel-2: #1b303c;
+    --line: #24404e;
+    --text: #e8f1f5;
+    --muted: #8fa8b5;
+    --accent: #2dd4bf;
+    --accent-dim: #14b8a6;
+    --warn: #fbbf24;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 10px 16px 8px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    z-index: 1001;
+  }
+  .logo { font-size: 18px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
+  .logo span { color: var(--accent); }
+  .counter { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+  .controls {
+    padding: 8px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    z-index: 1000;
+  }
+  .controls input[type="search"] {
+    flex: 1 1 160px;
+    min-width: 140px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+  }
+  .controls input[type="search"]:focus { border-color: var(--accent-dim); }
+  .controls select {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+    outline: none;
+    max-width: 46vw;
+  }
+  .chip {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .chip.on { background: var(--accent-dim); border-color: var(--accent-dim); color: #04211d; font-weight: 600; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #map { flex: 1; min-width: 0; background: #0a141b; }
+
+  aside {
+    width: 400px;
+    max-width: 45vw;
+    overflow-y: auto;
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+    padding: 12px;
+    scroll-behavior: smooth;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .card:hover { border-color: var(--accent-dim); }
+  .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card h3 { font-size: 16px; margin-bottom: 2px; }
+  .card .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+  .badge.boat { border-color: #2d6a8a; color: #9bd1ee; }
+  .badge.cable { border-color: #8a6a2d; color: #eed49b; }
+  .row { font-size: 13px; margin: 4px 0; display: flex; gap: 6px; line-height: 1.45; }
+  .row .ico { flex: 0 0 18px; text-align: center; }
+  .row .val { color: var(--text); }
+  .row .val.muted { color: var(--muted); }
+  .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .links a {
+    font-size: 12.5px;
+    color: #04211d;
+    background: var(--accent);
+    padding: 6px 11px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .links a.sec { background: var(--panel-2); color: var(--accent); border: 1px solid var(--accent-dim); font-weight: 500; }
+
+  .empty { color: var(--muted); text-align: center; padding: 40px 10px; font-size: 14px; }
+
+  /* Leaflet popup theming */
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: var(--panel); color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
+  .pp-name { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .pp-sub { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .pp-link { color: var(--accent); font-weight: 600; cursor: pointer; font-size: 12.5px; }
+  .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+  .leaflet-control-attribution { background: rgba(13,27,36,.7) !important; color: var(--muted) !important; }
+  .leaflet-control-attribution a { color: var(--muted) !important; }
+
+  /* Mobile: map on top, list under it */
+  @media (max-width: 800px) {
+    main { flex-direction: column; }
+    #map { flex: 0 0 42vh; }
+    aside { width: 100%; max-width: none; flex: 1; border-left: none; border-top: 1px solid var(--line); }
+    .controls select { max-width: none; flex: 1 1 40%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏄 WAKE<span>СПОТЫ</span> России</div>
+  <div class="counter" id="counter"></div>
+</header>
+
+<div class="controls">
+  <input type="search" id="q" placeholder="Поиск: клуб, город, катер…">
+  <select id="fRegion"><option value="">Все регионы</option></select>
+  <select id="fCity"><option value="">Все города</option></select>
+  <span class="chip" id="fTrain">🎓 с обучением</span>
+  <span class="chip" id="fBoat">🚤 катер указан</span>
+</div>
+
+<main>
+  <div id="map"></div>
+  <aside id="list"></aside>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script>
+const state = { q: "", region: "", city: "", train: false, boat: false, active: -1 };
+
+const map = L.map("map", { zoomControl: true }).setView([56.5, 44], 4);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 19
+}).addTo(map);
+
+const markers = [];
+
+function boatIcon(active) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="font-size:${active ? 30 : 24}px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); transform: translate(-50%,-50%);">🏄</div>`,
+    iconSize: [0, 0]
+  });
+}
+
+function norm(s) { return (s || "").toString().toLowerCase(); }
+
+function matches(s) {
+  if (state.region && s.region !== state.region) return false;
+  if (state.city && s.city !== state.city) return false;
+  if (state.train && !s.training) return false;
+  if (state.boat && !(s.boats && s.boats.length)) return false;
+  if (state.q) {
+    const hay = norm([s.name, s.city, s.water, s.address, (s.boats||[]).join(" "), s.notes].join(" "));
+    if (!hay.includes(norm(state.q))) return false;
+  }
+  return true;
+}
+
+function bookingLinks(s) {
+  const b = s.booking || {};
+  const out = [];
+  if (b.site) out.push(`<a href="${b.site}" target="_blank" rel="noopener">Сайт</a>`);
+  if (b.telegram) out.push(`<a class="sec" href="${b.telegram.startsWith('http') ? b.telegram : 'https://t.me/' + b.telegram.replace(/^@/,'')}" target="_blank" rel="noopener">Telegram</a>`);
+  if (b.vk) out.push(`<a class="sec" href="${b.vk}" target="_blank" rel="noopener">VK</a>`);
+  if (b.instagram) out.push(`<a class="sec" href="${b.instagram.startsWith('http') ? b.instagram : 'https://instagram.com/' + b.instagram.replace(/^@/,'')}" target="_blank" rel="noopener">Instagram</a>`);
+  if (b.phone) out.push(`<a class="sec" href="tel:${b.phone.replace(/[^+\d]/g,'')}">${b.phone}</a>`);
+  if (s.lat && s.lon) out.push(`<a class="sec" href="https://yandex.ru/maps/?pt=${s.lon},${s.lat}&z=15" target="_blank" rel="noopener">Я.Карты</a>`);
+  return out.join("");
+}
+
+function esc(s) { return (s || "").toString().replace(/</g, "&lt;"); }
+
+function cardHTML(s, i) {
+  const boats = (s.boats || []).map(b => `<span class="badge boat">🚤 ${esc(b)}</span>`).join("");
+  const cable = s.cable ? `<span class="badge cable">+ лебёдка</span>` : "";
+  const rows = [];
+  if (s.wave) rows.push(`<div class="row"><span class="ico">🌊</span><span class="val">${esc(s.wave)}</span></div>`);
+  if (s.price) rows.push(`<div class="row"><span class="ico">💸</span><span class="val">${esc(s.price)}</span></div>`);
+  if (s.season) rows.push(`<div class="row"><span class="ico">📅</span><span class="val">${esc(s.season)}</span></div>`);
+  if (s.training) rows.push(`<div class="row"><span class="ico">🎓</span><span class="val">${esc(s.training)}</span></div>`);
+  if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
+  if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
+  return `<div class="card" id="card-${i}" data-i="${i}">
+    <h3>${esc(s.name)}</h3>
+    <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}</div>
+    <div class="badges">${boats}${cable}</div>
+    ${rows.join("")}
+    <div class="links">${bookingLinks(s)}</div>
+  </div>`;
+}
+
+function render() {
+  const list = document.getElementById("list");
+  const idx = SPOTS.map((s, i) => i).filter(i => matches(SPOTS[i]));
+  list.innerHTML = idx.length
+    ? idx.map(i => cardHTML(SPOTS[i], i)).join("")
+    : `<div class="empty">Ничего не нашлось — сбросьте фильтры</div>`;
+  document.getElementById("counter").textContent =
+    `${idx.length} из ${SPOTS.length} спотов`;
+
+  markers.forEach(m => map.removeLayer(m.marker));
+  markers.length = 0;
+  idx.forEach(i => {
+    const s = SPOTS[i];
+    if (s.lat == null || s.lon == null) return;
+    const m = L.marker([s.lat, s.lon], { icon: boatIcon(false) }).addTo(map);
+    m.bindPopup(`<div class="pp-name">${esc(s.name)}</div>
+      <div class="pp-sub">${esc(s.city)} · ${esc(s.water || "")}</div>
+      ${s.price ? `<div>💸 ${esc(s.price)}</div>` : ""}
+      <div class="pp-link" onclick="focusCard(${i})">Открыть карточку ↓</div>`);
+    m.on("click", () => highlight(i, false));
+    markers.push({ i, marker: m });
+  });
+
+  list.querySelectorAll(".card").forEach(c => {
+    c.addEventListener("click", () => {
+      const i = +c.dataset.i;
+      highlight(i, true);
+      const s = SPOTS[i];
+      if (s.lat != null) {
+        map.flyTo([s.lat, s.lon], Math.max(map.getZoom(), 11), { duration: .6 });
+        const mm = markers.find(m => m.i === i);
+        if (mm) mm.marker.openPopup();
+      }
+    });
+  });
+}
+
+function highlight(i, fromList) {
+  state.active = i;
+  document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
+  const el = document.getElementById("card-" + i);
+  if (el) {
+    el.classList.add("active");
+    if (!fromList) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+function focusCard(i) { highlight(i, false); }
+
+function fillSelect(id, values) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.length = 1;
+  [...new Set(values)].sort((a, b) => a.localeCompare(b, "ru")).forEach(v => {
+    const o = document.createElement("option");
+    o.value = o.textContent = v;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+function initFilters() {
+  fillSelect("fRegion", SPOTS.map(s => s.region).filter(Boolean));
+  fillSelect("fCity", SPOTS.map(s => s.city).filter(Boolean));
+}
+
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; render(); });
+document.getElementById("fRegion").addEventListener("change", e => {
+  state.region = e.target.value;
+  state.city = "";
+  const cities = SPOTS.filter(s => !state.region || s.region === state.region).map(s => s.city).filter(Boolean);
+  fillSelect("fCity", cities);
+  document.getElementById("fCity").value = "";
+  render();
+});
+document.getElementById("fCity").addEventListener("change", e => { state.city = e.target.value; render(); });
+document.getElementById("fTrain").addEventListener("click", e => { state.train = !state.train; e.target.classList.toggle("on", state.train); render(); });
+document.getElementById("fBoat").addEventListener("click", e => { state.boat = !state.boat; e.target.classList.toggle("on", state.boat); render(); });
+
+initFilters();
+render();
+</script>
+</body>
+</html>

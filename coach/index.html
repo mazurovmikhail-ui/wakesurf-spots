@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>WakeCoach — разбор техники вейксёрфинга</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🏄</span>
+      <div>
+        <h1>WakeCoach</h1>
+        <p class="tagline">Загрузи своё видео — покажу ошибки техники и что поправить</p>
+      </div>
+    </div>
+    <div class="status" id="engineStatus">Инициализация ML-движка…</div>
+    <a href=".." style="color:#2dd4bf;text-decoration:none;border:1px solid #24404e;border-radius:10px;padding:6px 12px;font-size:13px;white-space:nowrap;">🗺 Споты России</a>
+  </header>
+
+  <main>
+    <!-- Тренер (мозг знаний) -->
+    <section class="panel coach-panel">
+      <h2><span class="step coach-step">🎓</span> Спроси тренера <span class="src-tag">5 школ + мастер-курс</span></h2>
+      <div class="coach-ask">
+        <input type="text" id="coachInput" placeholder="Напиши вопрос или трюк: «как встать», «падаю назад», «как сделать 360»…" autocomplete="off" />
+        <button id="coachBtn" class="primary coach-go">Спросить</button>
+      </div>
+      <div class="coach-chips" id="coachChips"></div>
+      <div class="coach-answer" id="coachAnswer" hidden></div>
+      <details class="coach-browse">
+        <summary>Или листай по темам</summary>
+        <div class="coach-topics" id="coachTopics"></div>
+      </details>
+    </section>
+
+    <!-- Шаг 1. Загрузка -->
+    <section class="panel">
+      <h2><span class="step">1</span> Видео</h2>
+      <div class="uploads">
+        <div class="upload-card">
+          <label class="drop" id="dropStudent">
+            <input type="file" id="fileStudent" accept="video/*" hidden />
+            <span class="drop-icon">🎬</span>
+            <span class="drop-title">Твоё видео</span>
+            <span class="drop-hint">Сбоку, весь силуэт в кадре, 5–20 сек</span>
+          </label>
+        </div>
+        <div class="upload-card">
+          <label class="drop" id="dropRef">
+            <input type="file" id="fileRef" accept="video/*" hidden />
+            <span class="drop-icon">🏆</span>
+            <span class="drop-title">Эталон (необязательно)</span>
+            <span class="drop-hint">Видео с правильной техникой для сравнения</span>
+          </label>
+          <select id="refPreset" class="ref-preset">
+            <option value="">— или выбрать встроенный эталон —</option>
+          </select>
+        </div>
+      </div>
+      <button id="analyzeBtn" class="primary" disabled>Разобрать технику</button>
+    </section>
+
+    <!-- Шаг 2. Прогресс -->
+    <section class="panel" id="progressPanel" hidden>
+      <h2><span class="step">2</span> Анализ</h2>
+      <div class="progress-row">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span id="progressLabel">0%</span>
+      </div>
+      <p class="muted" id="progressStage">Распознаю скелет по кадрам…</p>
+    </section>
+
+    <!-- Шаг 3. Результат -->
+    <section class="panel" id="resultPanel" hidden>
+      <h2><span class="step">3</span> Разбор</h2>
+
+      <div class="score-row">
+        <div class="score-ring" id="scoreRing">
+          <span id="scoreValue">—</span>
+          <small>из 100</small>
+        </div>
+        <div class="score-summary" id="scoreSummary"></div>
+      </div>
+
+      <div class="players">
+        <figure>
+          <figcaption>Твоё видео <span class="tag">скелет</span></figcaption>
+          <div class="video-wrap">
+            <video id="videoStudent" playsinline muted loop></video>
+            <canvas id="canvasStudent"></canvas>
+          </div>
+        </figure>
+        <figure id="refFigure" hidden>
+          <figcaption>Эталон <span class="tag ok">скелет</span></figcaption>
+          <div class="video-wrap">
+            <video id="videoRef" playsinline muted loop></video>
+            <canvas id="canvasRef"></canvas>
+          </div>
+        </figure>
+      </div>
+      <div class="playback">
+        <button id="playBtn" class="ghost">▶︎ Проиграть синхронно</button>
+        <button id="rescanBtn" class="ghost">↺ Другое видео</button>
+      </div>
+
+      <h3>Что поправить</h3>
+      <ul class="feedback" id="feedbackList"></ul>
+
+      <div class="trick-analyze">
+        <button id="trickBtn" class="ghost">🎬 Разобрать как трюк (прыжок / вращение)</button>
+        <div id="trickResult"></div>
+      </div>
+
+      <details class="metrics">
+        <summary>Метрики техники (для любопытных)</summary>
+        <div id="metricsTable"></div>
+      </details>
+    </section>
+    <!-- Частые ошибки новичка -->
+    <section class="panel">
+      <h2><span class="step warn-step">!</span> Частые ошибки новичка <span class="src-tag">методика WakeTime</span></h2>
+      <p class="muted">Чего избегать — по фундаментальным урокам <a href="https://www.youtube.com/@waketime-2176" target="_blank" rel="noopener">WakeTime</a>.</p>
+      <ul class="mistakes" id="mistakesList"></ul>
+    </section>
+
+    <!-- Библиотека трюков WakeTime -->
+    <section class="panel">
+      <h2><span class="step lib">★</span> Библиотека трюков <span class="src-tag">3 школы</span></h2>
+      <p class="muted">Единая база из трёх источников: <b>WakeTime</b> (механика «как делать») · <b>Relaxica</b> (определения) · <b>Austin Keen</b> (кью). У каждого трюка — ссылки на первоисточники.</p>
+      <div class="tricks-filter" id="tricksFilter"></div>
+      <div class="tricks" id="tricksLib"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Прототип. Анализ — эвристика по 2D-позе, не заменяет тренера.</span>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

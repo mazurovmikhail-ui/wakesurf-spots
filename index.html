@@ -383,6 +383,14 @@ function bookingLinks(s) {
 
 function esc(s) { return (s || "").toString().replace(/</g, "&lt;"); }
 
+const MONTH_LABELS = ["", "январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+function checkedLabel(s) {
+  const c = s.checked || (typeof DATA_CHECKED !== "undefined" ? DATA_CHECKED : null);
+  if (!c) return "—";
+  const [y, m] = c.split("-");
+  return `${MONTH_LABELS[+m] || ""} ${y}`.trim();
+}
+
 function cardHTML(s, i) {
   const boats = (s.boats || []).map(b => `<span class="badge boat">🚤 ${esc(b)}</span>`).join("");
   const cable = s.cable ? `<span class="badge cable">+ лебёдка</span>` : "";
@@ -394,6 +402,7 @@ function cardHTML(s, i) {
   if (s.stay) rows.push(`<div class="row"><span class="ico">🏠</span><span class="val">${esc(s.stay)}</span></div>`);
   if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
   if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
+  rows.push(`<div class="row"><span class="ico">✓</span><span class="val muted">данные проверены: ${checkedLabel(s)}</span></div>`);
   const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">☀️ Прогноз</button>` : "";
   const shareBtn = `<button class="fc-btn" onclick="shareSpot(event, ${i})">🔗 ссылка</button>`;
   const favBtn = `<span class="fav-btn ${FAVS.has(SLUGS[i]) ? "on" : ""}" onclick="toggleFav(event, ${i})" title="В избранное">${FAVS.has(SLUGS[i]) ? "★" : "☆"}</span>`;

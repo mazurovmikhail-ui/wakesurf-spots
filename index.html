@@ -42,6 +42,16 @@
   .logo { font-size: 18px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
   .logo span { color: var(--accent); }
   .counter { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .gh-link {
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+  .gh-link:hover { color: var(--accent); border-color: var(--accent-dim); }
 
   .controls {
     padding: 8px 16px;
@@ -170,6 +180,7 @@
 <header>
   <div class="logo">🏄 WAKE<span>СПОТЫ</span> России</div>
   <div class="counter" id="counter"></div>
+  <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots" target="_blank" rel="noopener">GitHub</a>
 </header>
 
 <div class="controls">

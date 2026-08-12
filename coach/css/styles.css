@@ -272,3 +272,17 @@ td.delta-good { color: var(--good); }
 @media (max-width: 620px) {
   .uploads, .players { grid-template-columns: 1fr; }
 }
+
+/* ── Физика трюков (Tip Finder) ── */
+.phys-step { background: rgba(56,189,248,.15); }
+.phys-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-top: 12px; }
+.phys-card { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.phys-card h3 { font-size: 15px; margin: 0 0 8px; }
+.phys-group { font-size: 11px; color: var(--muted); font-weight: 400; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin-left: 6px; white-space: nowrap; }
+.phys-myth { color: var(--bad); font-size: 13px; margin: 6px 0; }
+.phys-why { font-size: 13.5px; margin: 6px 0; line-height: 1.5; }
+.phys-fix { font-size: 13.5px; margin: 6px 0; line-height: 1.5; color: var(--good); }
+.phys-fix b { color: var(--good); }
+.phys-src { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+.phys-chip { background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.phys-chip.on { background: rgba(56,189,248,.15); border-color: var(--accent); color: var(--accent); }

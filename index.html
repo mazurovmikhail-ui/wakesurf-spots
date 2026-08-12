@@ -523,6 +523,23 @@ async function toggleForecast(ev, i) {
       } catch (e) { /* не море — пропускаем */ }
     }
 
+    // Пресная вода: оценка температуры по сглаженной температуре воздуха за месяц.
+    // Вода следует за воздухом с запаздыванием — экспоненциальное сглаживание (k=0.12).
+    let estWater = null;
+    if (!marine || marine.sst == null) {
+      try {
+        const eUrl = `https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}` +
+          `&daily=temperature_2m_mean&past_days=30&forecast_days=1&timezone=auto`;
+        const ew = await (await fetch(eUrl)).json();
+        const temps = ((ew.daily && ew.daily.temperature_2m_mean) || []).filter(v => v != null);
+        if (temps.length >= 10) {
+          let tw = temps.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+          for (const ta of temps) tw += 0.12 * (ta - tw);
+          estWater = Math.round(tw);
+        }
+      } catch (e) { /* оценки не будет */ }
+    }
+
     const d = wx.daily;
     const cells = d.time.map((t, k) => {
       const date = new Date(t + "T12:00");
@@ -566,6 +583,7 @@ async function toggleForecast(ev, i) {
       ? `🪞 Штилевые окна (ветер ≤ 3 м/с): ${windows.join(", ")}`
       : `Штилевых окон в ближайшие 3 дня не видно — ловите раннее утро`;
     if (marine && marine.sst != null) glass = `🌡 Вода сегодня ~${marine.sst}° · ` + glass;
+    else if (estWater != null) glass = `🌡 Вода ~${estWater}° (оценка по погоде) · ` + glass;
 
     const wg = `https://www.windguru.cz/map/?lat=${s.lat}&lon=${s.lon}&zoom=11`;
     const wy = `https://www.windy.com/${s.lat}/${s.lon}?${s.lat},${s.lon},11`;

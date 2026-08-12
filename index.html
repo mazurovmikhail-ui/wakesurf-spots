@@ -56,6 +56,82 @@
     white-space: nowrap;
   }
   .gh-link:hover { color: var(--accent); border-color: var(--accent-dim); }
+  .gh-link.primary { color: #04211d; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+  /* ── Раздел «Новичку» ── */
+  .guide-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 14, 19, .75);
+    z-index: 2000;
+    display: none;
+    overflow-y: auto;
+    padding: 20px 12px 40px;
+  }
+  .guide-overlay.open { display: block; }
+  .guide {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 22px 26px;
+    line-height: 1.55;
+    font-size: 14.5px;
+  }
+  .guide h2 { font-size: 20px; margin-bottom: 4px; padding-right: 40px; }
+  .guide .g-sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .guide h3 { font-size: 16px; margin: 20px 0 8px; color: var(--accent); }
+  .guide p { margin: 8px 0; }
+  .guide ul { margin: 8px 0 8px 20px; }
+  .guide li { margin: 5px 0; }
+  .guide table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13.5px; }
+  .guide th, .guide td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  .guide th { background: var(--panel-2); color: var(--muted); font-weight: 600; }
+  .guide .warn {
+    background: rgba(251, 191, 36, .08);
+    border: 1px solid rgba(251, 191, 36, .35);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 10px 0;
+  }
+  .guide-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .guide-close:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .guide .steps { counter-reset: st; margin: 8px 0; }
+  .guide .steps div {
+    counter-increment: st;
+    margin: 6px 0;
+    padding-left: 34px;
+    position: relative;
+  }
+  .guide .steps div::before {
+    content: counter(st);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    color: #04211d;
+    font-weight: 700;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
   .controls {
     padding: 8px 16px;
@@ -234,6 +310,7 @@
 <header>
   <div class="logo">🏄 WAKE<span>СПОТЫ</span> России</div>
   <div class="counter" id="counter"></div>
+  <a class="gh-link primary" href="#" id="btnGuide">🎓 Новичку</a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots/issues/new?title=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D1%81%D0%BF%D0%BE%D1%82&body=%D0%9D%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%3A%0A%D0%93%D0%BE%D1%80%D0%BE%D0%B4%3A%0A%D0%90%D0%BA%D0%B2%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F%3A%0A%D0%9A%D0%B0%D1%82%D0%B5%D1%80%D0%B0%3A%0A%D0%A6%D0%B5%D0%BD%D1%8B%3A%0A%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%3A" target="_blank" rel="noopener">➕ Предложить спот</a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots" target="_blank" rel="noopener">GitHub</a>
 </header>
@@ -258,6 +335,76 @@
   <div id="map"></div>
   <aside id="list"></aside>
 </main>
+
+<div class="guide-overlay" id="guideOverlay">
+  <div class="guide">
+    <button class="guide-close" id="btnGuideClose">✕ закрыть</button>
+    <h2>🎓 Что нужно знать новичку</h2>
+    <div class="g-sub">Короткий справочник перед первым сетом. Не заменяет инструктора на споте.</div>
+
+    <h3>Что такое вейксёрфинг</h3>
+    <p>Ты едешь на доске по волне, которую создаёт катер со специальным балластом. Сначала катер тянет тебя за верёвку (<b>фал</b>), ты встаёшь и разгоняешься, потом ловишь «карман» волны, бросаешь фал — и едешь по волне сам, как в океане, только волна бесконечная. Скорость небольшая, 17–19 км/ч, ноги к доске не пристёгнуты. Большинство новичков встают на доску уже в первый сет.</p>
+
+    <h3>🛹 Какие бывают доски</h3>
+    <ul>
+      <li><b>Surf-style</b> — толще и объёмнее, стабильная, сама держит на волне. <b>Новичкам — сюда.</b></li>
+      <li><b>Skim-style</b> — тонкая и вёрткая, для вращений и трюков. Баланс держать сложнее.</li>
+      <li><b>Hybrid</b> — среднее между ними; <b>лонгборд</b> — для плавного «классического» серф-стиля.</li>
+    </ul>
+    <p>Размер подбирают по весу райдера:</p>
+    <table>
+      <tr><th>Вес райдера</th><th>Длина доски</th></tr>
+      <tr><td>45–68 кг</td><td>4'2"–4'6"</td></tr>
+      <tr><td>68–90 кг</td><td>4'6"–4'10"</td></tr>
+      <tr><td>90+ кг</td><td>4'10"–5'3"</td></tr>
+    </table>
+    <p>Фины (плавники): больше и крупнее — стабильнее держит курс; меньше — легче срывать доску в слайды. Новичку — 3 фина (трастер). Свою доску покупать не нужно: почти во всех клубах доски и подбор включены в сет — смотрите поле «обучение» в карточке спота.</p>
+
+    <h3>👕 Что надеть</h3>
+    <ul>
+      <li><b>Спасжилет — всегда</b>, без исключений. Выдают в клубе.</li>
+      <li><b>Гидрокостюм</b> — по температуре воды (она видна в прогнозе у каждого спота):
+        <table>
+          <tr><th>Вода</th><th>Что надеть</th></tr>
+          <tr><td>20°+ </td><td>купальник/борд-шорты, по желанию лайкра от солнца</td></tr>
+          <tr><td>15–20°</td><td>гидрокостюм 3/2 мм</td></tr>
+          <tr><td>ниже 15°</td><td>гидрокостюм 4/3–5/4 мм (начало мая, октябрь)</td></tr>
+        </table>
+        В большинстве клубов гидрокостюмы дают бесплатно.</li>
+      <li>На доске стоят <b>босиком</b>. Украшения и очки без страховки лучше оставить на берегу.</li>
+      <li><b>Шлем</b> — когда начнёте прыгать трюки; для первых сетов не нужен.</li>
+    </ul>
+
+    <h3>⚠️ Техника безопасности</h3>
+    <div class="warn"><b>Главное правило:</b> вейксёрфят только за катером с безопасным винтом — inboard / V-drive, где винт глубоко под корпусом и далеко от райдера. За обычной моторкой с подвесным мотором кататься <b>нельзя</b> — винт рядом с человеком. Все клубы в этом каталоге катают на специализированных катерах.</div>
+    <ul>
+      <li>Упал райдер — водитель сразу переводит двигатель в нейтраль. Верёвку из винта достают только с заглушенным двигателем.</li>
+      <li>Не сидеть на кормовой платформе при работающем двигателе и не «висеть» близко за кормой — там выхлоп и угарный газ.</li>
+      <li>Держаться от катера на длине фала, не подъезжать вплотную к платформе.</li>
+      <li><b>Падать правильно:</b> плоско, от доски, прикрыв голову руками; не нырять головой вперёд и не хватать доску — дать ей уйти.</li>
+      <li><b>Сигналы руками:</b> палец вверх/вниз — быстрее/медленнее; похлопать по голове — «домой»; руки «домиком» над головой после падения — «я в порядке».</li>
+      <li>После падения ждите катер на месте, жилет держит — паниковать не о чем.</li>
+    </ul>
+
+    <h3>🦶 Какая нога впереди</h3>
+    <p><b>Regular</b> — левая нога впереди, <b>goofy</b> — правая. Не знаете свою стойку? Пусть кто-нибудь слегка толкнёт вас в спину: нога, которая шагнёт первой — толчковая, она встаёт назад. Подсказка: обычно сзади та нога, которой пинаете мяч.</p>
+
+    <h3>🏄 Первый старт — 4 шага</h3>
+    <p>Лежите на спине в жилете, пятки на доске чуть шире плеч, руки прямые держат фал. Дальше формула, которую можно отрепетировать прямо на берегу:</p>
+    <div class="steps">
+      <div><b>Прижми пятки</b> вниз к доске — поток воды сам прижмёт её к стопам.</div>
+      <div><b>Подтяни таз</b> к пяткам — сгруппируйся.</div>
+      <div><b>Оттяни носки</b> вниз к воде.</div>
+      <div><b>Просто встань</b> — вырастай плечами вверх, не тянись к катеру.</div>
+    </div>
+    <p>Три правила, которые решают 80% дела: <b>колени согнуты</b> (пружина), <b>руки прямые</b> (тянет катер, а не бицепс), <b>взгляд вперёд</b> (не под ноги). Вес чуть на переднюю ногу — разгон; на заднюю — торможение.</p>
+
+    <h3>📈 Что дальше</h3>
+    <p>Маршрут прогресса: встать из воды → уверенно ехать на фале → найти «карман», где волна толкает сама → бросить фал → пампинг и карвинг → первые трюки. Не перепрыгивайте ступени — каждая опирается на предыдущую. Фильтр «🎓 с обучением» покажет споты с инструкторами, а «сначала дешевле» — где тренироваться выгоднее.</p>
+
+    <div class="g-sub" style="margin-top:16px">Собрано по методикам школ WakeTime, Relaxica, Austin Keen, Ashley Kidd, SUNNI Days и общим гайдам (evo, WakeMAKERS, MISSION). Слушайте своего инструктора — он видит вас, а не текст.</div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
@@ -682,6 +829,16 @@ function openFromHash() {
 }
 window.addEventListener("hashchange", openFromHash);
 openFromHash();
+
+// Раздел «Новичку»
+const guideOverlay = document.getElementById("guideOverlay");
+document.getElementById("btnGuide").addEventListener("click", e => {
+  e.preventDefault();
+  guideOverlay.classList.add("open");
+});
+document.getElementById("btnGuideClose").addEventListener("click", () => guideOverlay.classList.remove("open"));
+guideOverlay.addEventListener("click", e => { if (e.target === guideOverlay) guideOverlay.classList.remove("open"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") guideOverlay.classList.remove("open"); });
 
 // PWA: сервис-воркер для установки на телефон и офлайна
 if ("serviceWorker" in navigator) {

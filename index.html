@@ -150,6 +150,38 @@
     font-weight: 600;
   }
   .links a.sec { background: var(--panel-2); color: var(--accent); border: 1px solid var(--accent-dim); font-weight: 500; }
+  .links .fc-btn {
+    font-size: 12.5px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .links .fc-btn:hover { border-color: var(--accent-dim); }
+
+  .forecast { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .fc-days { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+  .fc-day {
+    flex: 1 0 56px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .fc-day .d { color: var(--muted); }
+  .fc-day .i { font-size: 16px; }
+  .fc-wind-ok { color: #4ade80; }
+  .fc-wind-mid { color: var(--warn); }
+  .fc-wind-bad { color: #f87171; }
+  .fc-glass { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .fc-glass b { color: var(--accent); font-weight: 600; }
+  .fc-note { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
 
   .empty { color: var(--muted); text-align: center; padding: 40px 10px; font-size: 14px; }
 
@@ -256,12 +288,14 @@ function cardHTML(s, i) {
   if (s.training) rows.push(`<div class="row"><span class="ico">🎓</span><span class="val">${esc(s.training)}</span></div>`);
   if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
   if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
+  const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">☀️ Прогноз</button>` : "";
   return `<div class="card" id="card-${i}" data-i="${i}">
     <h3>${esc(s.name)}</h3>
     <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}</div>
     <div class="badges">${boats}${cable}</div>
     ${rows.join("")}
-    <div class="links">${bookingLinks(s)}</div>
+    <div class="links">${bookingLinks(s)}${fcBtn}</div>
+    <div class="forecast" id="fc-${i}" style="display:none"></div>
   </div>`;
 }
 
@@ -313,6 +347,99 @@ function highlight(i, fromList) {
 }
 
 function focusCard(i) { highlight(i, false); }
+
+// ── Прогноз погоды и волны (Open-Meteo, без ключа) ──
+const fcCache = {};
+const WMO_ICONS = [
+  [0, "☀️"], [1, "🌤"], [2, "⛅"], [3, "☁️"], [45, "🌫"], [48, "🌫"],
+  [51, "🌦"], [57, "🌦"], [61, "🌧"], [67, "🌧"], [71, "🌨"], [77, "🌨"],
+  [80, "🌧"], [82, "🌧"], [85, "🌨"], [86, "🌨"], [95, "⛈"], [99, "⛈"]
+];
+function wmoIcon(code) {
+  let icon = "☁️";
+  for (const [c, i] of WMO_ICONS) if (code >= c) icon = i;
+  return icon;
+}
+function windClass(ms) { return ms <= 4 ? "fc-wind-ok" : ms <= 7 ? "fc-wind-mid" : "fc-wind-bad"; }
+const DAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+
+async function toggleForecast(ev, i) {
+  ev.stopPropagation();
+  const box = document.getElementById("fc-" + i);
+  if (box.style.display !== "none") { box.style.display = "none"; return; }
+  box.style.display = "block";
+  if (fcCache[i]) { box.innerHTML = fcCache[i]; return; }
+  box.innerHTML = `<div class="fc-glass">Загружаю прогноз…</div>`;
+  const s = SPOTS[i];
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}` +
+      `&daily=weather_code,temperature_2m_max,wind_speed_10m_max,wind_gusts_10m_max,precipitation_probability_max` +
+      `&hourly=wind_speed_10m&timezone=auto&forecast_days=7&wind_speed_unit=ms`;
+    const wx = await (await fetch(url)).json();
+
+    // Высота волны — только для морских акваторий
+    let marine = null;
+    if (/море|бухта/i.test(s.water || "") && !/обское/i.test(s.water || "")) {
+      try {
+        const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat}&longitude=${s.lon}` +
+          `&daily=wave_height_max&timezone=auto&forecast_days=7`;
+        const m = await (await fetch(mUrl)).json();
+        if (m.daily && m.daily.wave_height_max && m.daily.wave_height_max.some(v => v != null)) marine = m.daily;
+      } catch (e) { /* не море — пропускаем */ }
+    }
+
+    const d = wx.daily;
+    const cells = d.time.map((t, k) => {
+      const date = new Date(t + "T12:00");
+      const wind = Math.round(d.wind_speed_10m_max[k]);
+      const gust = Math.round(d.wind_gusts_10m_max[k]);
+      const rain = d.precipitation_probability_max[k];
+      const wave = marine && marine.wave_height_max[k] != null
+        ? `<div>🌊 ${marine.wave_height_max[k].toFixed(1)} м</div>` : "";
+      return `<div class="fc-day">
+        <div class="d">${DAYS_RU[date.getDay()]} ${date.getDate()}</div>
+        <div class="i">${wmoIcon(d.weather_code[k])}</div>
+        <div>${Math.round(d.temperature_2m_max[k])}°</div>
+        <div class="${windClass(wind)}">💨 ${wind}<span style="opacity:.6">/${gust}</span></div>
+        ${rain >= 30 ? `<div>☔ ${rain}%</div>` : ""}
+        ${wave}
+      </div>`;
+    }).join("");
+
+    // Штилевые окна: часы 05–21 со скоростью ветра ≤ 3 м/с в ближайшие 3 дня
+    const windows = [];
+    const h = wx.hourly;
+    for (let day = 0; day < 3 && windows.length < 3; day++) {
+      let start = -1, best = null;
+      for (let hr = 5; hr <= 21; hr++) {
+        const idx = day * 24 + hr;
+        if (idx >= h.wind_speed_10m.length) break;
+        const calm = h.wind_speed_10m[idx] != null && h.wind_speed_10m[idx] <= 3;
+        if (calm && start < 0) start = hr;
+        if ((!calm || hr === 21) && start >= 0) {
+          const end = calm ? hr : hr - 1;
+          if (end - start >= 1 && (!best || end - start > best[1] - best[0])) best = [start, end + 1];
+          start = -1;
+        }
+      }
+      if (best) {
+        const date = new Date(h.time[day * 24 + 12]);
+        windows.push(`<b>${DAYS_RU[date.getDay()]}</b> ${best[0]}:00–${best[1]}:00`);
+      }
+    }
+    const glass = windows.length
+      ? `🪞 Штилевые окна (ветер ≤ 3 м/с): ${windows.join(", ")}`
+      : `Штилевых окон в ближайшие 3 дня не видно — ловите раннее утро`;
+
+    const html = `<div class="fc-days">${cells}</div>
+      <div class="fc-glass">${glass}</div>
+      <div class="fc-note">💨 макс/порывы, м/с · прогноз Open-Meteo для точки спота</div>`;
+    fcCache[i] = html;
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = `<div class="fc-glass">Не удалось загрузить прогноз — проверьте интернет</div>`;
+  }
+}
 
 function fillSelect(id, values) {
   const sel = document.getElementById(id);

@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Вейксёрф-споты России</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14252f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
@@ -119,7 +123,25 @@
     margin-bottom: 12px;
     cursor: pointer;
     transition: border-color .15s;
+    position: relative;
   }
+  .fav-btn {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--muted);
+    user-select: none;
+    line-height: 1;
+  }
+  .fav-btn.on { color: var(--warn); }
+  .card h3 { padding-right: 28px; }
+  .dot-season { font-size: 10px; vertical-align: 1px; }
+  .dot-on { color: #4ade80; }
+  .dot-off { color: #64748b; }
+  .badge.ppm { border-color: #3f6212; color: #bef264; }
+  .dist { color: var(--accent); font-weight: 600; }
   .card:hover { border-color: var(--accent-dim); }
   .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .card h3 { font-size: 16px; margin-bottom: 2px; }
@@ -212,6 +234,7 @@
 <header>
   <div class="logo">🏄 WAKE<span>СПОТЫ</span> России</div>
   <div class="counter" id="counter"></div>
+  <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots/issues/new?title=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D1%81%D0%BF%D0%BE%D1%82&body=%D0%9D%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%3A%0A%D0%93%D0%BE%D1%80%D0%BE%D0%B4%3A%0A%D0%90%D0%BA%D0%B2%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F%3A%0A%D0%9A%D0%B0%D1%82%D0%B5%D1%80%D0%B0%3A%0A%D0%A6%D0%B5%D0%BD%D1%8B%3A%0A%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%3A" target="_blank" rel="noopener">➕ Предложить спот</a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots" target="_blank" rel="noopener">GitHub</a>
 </header>
 
@@ -222,6 +245,13 @@
   <span class="chip" id="fTrain">🎓 с обучением</span>
   <span class="chip" id="fBoat">🚤 катер указан</span>
   <span class="chip" id="fStay">🏠 с проживанием</span>
+  <span class="chip" id="fFav">⭐ избранное</span>
+  <span class="chip" id="btnGeo">📍 рядом со мной</span>
+  <select id="fSort">
+    <option value="default">Сортировка: обычная</option>
+    <option value="price">Сначала дешевле</option>
+    <option value="dist">Сначала ближе</option>
+  </select>
 </div>
 
 <main>
@@ -232,7 +262,79 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script>
-const state = { q: "", region: "", city: "", train: false, boat: false, stay: false, active: -1 };
+const state = { q: "", region: "", city: "", train: false, boat: false, stay: false, fav: false, sort: "default", userPos: null, active: -1 };
+
+// ── Утилиты: слаги, расстояние, цена/мин, сезон, избранное ──
+const TRANSLIT = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"c",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya" };
+function slug(name) {
+  return name.toLowerCase().split("").map(c => TRANSLIT[c] !== undefined ? TRANSLIT[c] : c).join("")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+const SLUGS = SPOTS.map(s => slug(s.name));
+
+function distKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLon = (lon2 - lon1) * toR;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toR) * Math.cos(lat2*toR) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function pricePerMin(s) {
+  if (!s.price) return null;
+  const t = s.price.replace(/ /g, " ").replace(/(\d)\s+(\d{3})/g, "$1$2");
+  let m = t.match(/(\d+)\s*₽\s*\/\s*мин/);
+  if (m) return +m[1];
+  const dur = t.match(/(\d+)\s*мин/);
+  const money = t.match(/(\d{3,6})(?:[–-]\d{3,6})?\s*₽/);
+  if (dur && money && +dur[1] > 0) return Math.round(+money[1] / +dur[1]);
+  if (/час/.test(t) && money) return Math.round(+money[1] / 60);
+  return null;
+}
+const PPM = SPOTS.map(pricePerMin);
+
+const MONTHS_RU = { янв:1, фев:2, мар:3, апр:4, мая:5, май:5, июн:6, июл:7, авг:8, сен:9, окт:10, ноя:11, дек:12 };
+function inSeasonNow(s) {
+  if (!s.season) return null;
+  const t = s.season.toLowerCase();
+  if (/круглый год|круглогодич/.test(t)) return true;
+  const found = [];
+  for (const [k, v] of Object.entries(MONTHS_RU)) {
+    const idx = t.indexOf(k);
+    if (idx >= 0) found.push({ v, idx });
+  }
+  const now = new Date().getMonth() + 1;
+  if (found.length >= 2) {
+    found.sort((a, b) => a.idx - b.idx);
+    const a = found[0].v, b = found[found.length - 1].v;
+    if (a === b) return now === a;
+    return a <= b ? (now >= a && now <= b) : (now >= a || now <= b);
+  }
+  if (/лето|летний/.test(t)) return now >= 6 && now <= 8;
+  if (/т[её]плый сезон/.test(t)) return now >= 5 && now <= 9;
+  return null;
+}
+const SEASON_NOW = SPOTS.map(inSeasonNow);
+
+let FAVS = new Set();
+try { FAVS = new Set(JSON.parse(localStorage.getItem("wakefavs") || "[]")); } catch (e) {}
+function toggleFav(ev, i) {
+  ev.stopPropagation();
+  const sl = SLUGS[i];
+  if (FAVS.has(sl)) FAVS.delete(sl); else FAVS.add(sl);
+  try { localStorage.setItem("wakefavs", JSON.stringify([...FAVS])); } catch (e) {}
+  render();
+}
+
+function shareSpot(ev, i) {
+  ev.stopPropagation();
+  const url = location.origin + location.pathname + "#" + SLUGS[i];
+  const done = () => {
+    ev.target.textContent = "✓ скопировано";
+    setTimeout(() => { ev.target.textContent = "🔗 ссылка"; }, 1500);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt("Ссылка на спот:", url));
+  else prompt("Ссылка на спот:", url);
+}
 
 const map = L.map("map", { zoomControl: true }).setView([56.5, 44], 4);
 map.attributionControl.setPrefix("");
@@ -259,6 +361,7 @@ function matches(s) {
   if (state.train && !s.training) return false;
   if (state.boat && !(s.boats && s.boats.length)) return false;
   if (state.stay && !s.stay) return false;
+  if (state.fav && !FAVS.has(slug(s.name))) return false;
   if (state.q) {
     const hay = norm([s.name, s.city, s.water, s.address, (s.boats||[]).join(" "), s.notes, s.stay].join(" "));
     if (!hay.includes(norm(state.q))) return false;
@@ -292,19 +395,35 @@ function cardHTML(s, i) {
   if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
   if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
   const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">☀️ Прогноз</button>` : "";
+  const shareBtn = `<button class="fc-btn" onclick="shareSpot(event, ${i})">🔗 ссылка</button>`;
+  const favBtn = `<span class="fav-btn ${FAVS.has(SLUGS[i]) ? "on" : ""}" onclick="toggleFav(event, ${i})" title="В избранное">${FAVS.has(SLUGS[i]) ? "★" : "☆"}</span>`;
+  const season = SEASON_NOW[i] === null ? "" :
+    SEASON_NOW[i] ? ` · <span class="dot-season dot-on">●</span> сезон`
+                  : ` · <span class="dot-season dot-off">●</span> не сезон`;
+  const dist = (state.userPos && s.lat != null)
+    ? ` · <span class="dist">${Math.round(distKm(state.userPos[0], state.userPos[1], s.lat, s.lon))} км</span>` : "";
+  const ppm = PPM[i] != null ? `<span class="badge ppm">≈${PPM[i]} ₽/мин</span>` : "";
   return `<div class="card" id="card-${i}" data-i="${i}">
+    ${favBtn}
     <h3>${esc(s.name)}</h3>
-    <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}</div>
-    <div class="badges">${boats}${cable}</div>
+    <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}${season}${dist}</div>
+    <div class="badges">${boats}${cable}${ppm}</div>
     ${rows.join("")}
-    <div class="links">${bookingLinks(s)}${fcBtn}</div>
+    <div class="links">${bookingLinks(s)}${fcBtn}${shareBtn}</div>
     <div class="forecast" id="fc-${i}" style="display:none"></div>
   </div>`;
 }
 
 function render() {
   const list = document.getElementById("list");
-  const idx = SPOTS.map((s, i) => i).filter(i => matches(SPOTS[i]));
+  let idx = SPOTS.map((s, i) => i).filter(i => matches(SPOTS[i]));
+  if (state.sort === "price") {
+    idx.sort((a, b) => (PPM[a] ?? Infinity) - (PPM[b] ?? Infinity));
+  } else if (state.sort === "dist" && state.userPos) {
+    const d = i => SPOTS[i].lat != null
+      ? distKm(state.userPos[0], state.userPos[1], SPOTS[i].lat, SPOTS[i].lon) : Infinity;
+    idx.sort((a, b) => d(a) - d(b));
+  }
   list.innerHTML = idx.length
     ? idx.map(i => cardHTML(SPOTS[i], i)).join("")
     : `<div class="empty">Ничего не нашлось — сбросьте фильтры</div>`;
@@ -385,9 +504,13 @@ async function toggleForecast(ev, i) {
     if (/море|бухта/i.test(s.water || "") && !/обское/i.test(s.water || "")) {
       try {
         const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat}&longitude=${s.lon}` +
-          `&daily=wave_height_max&timezone=auto&forecast_days=7`;
+          `&daily=wave_height_max&hourly=sea_surface_temperature&timezone=auto&forecast_days=7`;
         const m = await (await fetch(mUrl)).json();
-        if (m.daily && m.daily.wave_height_max && m.daily.wave_height_max.some(v => v != null)) marine = m.daily;
+        if (m.daily && m.daily.wave_height_max && m.daily.wave_height_max.some(v => v != null)) {
+          marine = m.daily;
+          const sst = m.hourly && m.hourly.sea_surface_temperature;
+          if (sst && sst[12] != null) marine.sst = Math.round(sst[12]);
+        }
       } catch (e) { /* не море — пропускаем */ }
     }
 
@@ -430,9 +553,10 @@ async function toggleForecast(ev, i) {
         windows.push(`<b>${DAYS_RU[date.getDay()]}</b> ${best[0]}:00–${best[1]}:00`);
       }
     }
-    const glass = windows.length
+    let glass = windows.length
       ? `🪞 Штилевые окна (ветер ≤ 3 м/с): ${windows.join(", ")}`
       : `Штилевых окон в ближайшие 3 дня не видно — ловите раннее утро`;
+    if (marine && marine.sst != null) glass = `🌡 Вода сегодня ~${marine.sst}° · ` + glass;
 
     const wg = `https://www.windguru.cz/map/?lat=${s.lat}&lon=${s.lon}&zoom=11`;
     const wy = `https://www.windy.com/${s.lat}/${s.lon}?${s.lat},${s.lon},11`;
@@ -480,9 +604,62 @@ document.getElementById("fCity").addEventListener("change", e => { state.city = 
 document.getElementById("fTrain").addEventListener("click", e => { state.train = !state.train; e.target.classList.toggle("on", state.train); render(); });
 document.getElementById("fBoat").addEventListener("click", e => { state.boat = !state.boat; e.target.classList.toggle("on", state.boat); render(); });
 document.getElementById("fStay").addEventListener("click", e => { state.stay = !state.stay; e.target.classList.toggle("on", state.stay); render(); });
+document.getElementById("fFav").addEventListener("click", e => { state.fav = !state.fav; e.target.classList.toggle("on", state.fav); render(); });
+document.getElementById("fSort").addEventListener("change", e => { state.sort = e.target.value; render(); });
+
+document.getElementById("btnGeo").addEventListener("click", e => {
+  if (state.userPos) {
+    state.userPos = null;
+    state.sort = "default";
+    document.getElementById("fSort").value = "default";
+    e.target.classList.remove("on");
+    render();
+    return;
+  }
+  if (!navigator.geolocation) { alert("Геолокация не поддерживается браузером"); return; }
+  e.target.textContent = "📍 определяю…";
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      state.userPos = [pos.coords.latitude, pos.coords.longitude];
+      state.sort = "dist";
+      document.getElementById("fSort").value = "dist";
+      e.target.textContent = "📍 рядом со мной";
+      e.target.classList.add("on");
+      render();
+      map.flyTo(state.userPos, 9, { duration: .8 });
+    },
+    () => {
+      e.target.textContent = "📍 рядом со мной";
+      alert("Не удалось определить местоположение — разрешите доступ к геолокации");
+    },
+    { timeout: 10000 }
+  );
+});
 
 initFilters();
 render();
+
+// Прямая ссылка на спот: #slug открывает и подсвечивает карточку
+function openFromHash() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ""));
+  if (!h) return;
+  const i = SLUGS.indexOf(h);
+  if (i < 0) return;
+  const s = SPOTS[i];
+  highlight(i, false);
+  if (s.lat != null) {
+    map.flyTo([s.lat, s.lon], 12, { duration: .8 });
+    const mm = markers.find(m => m.i === i);
+    if (mm) setTimeout(() => mm.marker.openPopup(), 900);
+  }
+}
+window.addEventListener("hashchange", openFromHash);
+openFromHash();
+
+// PWA: сервис-воркер для установки на телефон и офлайна
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 </script>
 </body>
 </html>

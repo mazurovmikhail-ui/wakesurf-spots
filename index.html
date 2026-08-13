@@ -133,6 +133,93 @@
     justify-content: center;
   }
 
+  /* ── Дизайн-пасс: типографика, иконки, поверхности браузера, движение ── */
+  ::selection { background: var(--accent); color: #04211d; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  aside::-webkit-scrollbar, .guide-overlay::-webkit-scrollbar { width: 8px; }
+  .fc-days::-webkit-scrollbar, .controls::-webkit-scrollbar { height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .logo { font-size: 19px; letter-spacing: .01em; display: flex; align-items: center; gap: 9px; }
+  .logo .mark { display: flex; color: var(--accent); }
+  .counter { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .card h3 { letter-spacing: -0.01em; font-weight: 700; }
+  .card .sub { line-height: 1.5; }
+  .row .val { line-height: 1.5; }
+
+  .ico { display: flex; align-items: flex-start; justify-content: center; padding-top: 2px; color: var(--muted); }
+  .ico svg, .chip svg, .gh-link svg, .fc-btn svg, .links a svg { width: 15px; height: 15px; flex: 0 0 auto; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; }
+  .badge svg { width: 12px; height: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; }
+  .gh-link { display: inline-flex; align-items: center; gap: 6px; }
+  .links a, .links .fc-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+  .fav-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; transition: transform .18s ease; }
+  .fav-btn.on svg { fill: var(--warn); stroke: var(--warn); }
+  .fav-btn:hover svg { transform: scale(1.12); }
+
+  .pin { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .55)); transform-origin: 50% 100%; }
+  .pin-active { filter: drop-shadow(0 4px 7px rgba(0, 0, 0, .6)); }
+
+  .map-legend {
+    position: absolute;
+    left: 10px;
+    bottom: 26px;
+    z-index: 800;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    max-width: 240px;
+    background: rgba(13, 27, 36, .82);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 10.5px;
+    color: var(--muted);
+    pointer-events: none;
+    line-height: 1.4;
+  }
+  .map-legend i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: -1px;
+    font-style: normal;
+  }
+  @media (max-width: 800px) {
+    .map-legend { display: none; }
+  }
+
+  .chip, .links a, .links .fc-btn, .gh-link, .controls select, .controls input[type="search"] {
+    transition: border-color .18s ease, background-color .18s ease, color .18s ease, transform .18s ease;
+  }
+  .chip:hover { border-color: var(--accent-dim); color: var(--text); }
+  .chip.on:hover { color: #04211d; }
+  .links a:hover, .links .fc-btn:hover { transform: translateY(-1px); }
+  .card { transition: border-color .18s ease, transform .2s ease, box-shadow .2s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
+  .card.active:hover { transform: none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card { animation: cardIn .45s cubic-bezier(.16, 1, .3, 1) both; }
+    .forecast { animation: fcIn .3s cubic-bezier(.16, 1, .3, 1); }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes fcIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .forecast, .fav-btn svg, .chip, .links a { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 800px) {
+    .gh-link span.lbl { display: none; }
+  }
+
   .controls {
     padding: 8px 16px;
     background: var(--panel);
@@ -296,23 +383,32 @@
   .leaflet-control-attribution { background: rgba(13,27,36,.7) !important; color: var(--muted) !important; }
   .leaflet-control-attribution a { color: var(--muted) !important; }
 
-  /* Mobile: map on top, list under it */
+  /* Mobile: map on top, list under it; filters in one scrollable row */
   @media (max-width: 800px) {
     main { flex-direction: column; }
     #map { flex: 0 0 42vh; }
     aside { width: 100%; max-width: none; flex: 1; border-left: none; border-top: 1px solid var(--line); }
-    .controls select { max-width: none; flex: 1 1 40%; }
+    .controls {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .controls::-webkit-scrollbar { display: none; }
+    .controls > * { flex: 0 0 auto; }
+    .controls input[type="search"] { flex: 0 0 175px; min-width: 0; }
+    .controls select { max-width: none; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">🏄 WAKE<span>СПОТЫ</span> России</div>
+  <div class="logo"><span class="mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 13.5c2.2-3.6 4.8-3.6 7 0s4.8 3.6 7 0 4-3.2 6-1"/><path d="M2 18.5c2.2-3.6 4.8-3.6 7 0s4.8 3.6 7 0 4-3.2 6-1" opacity=".45"/></svg></span>WAKE<span>СПОТЫ</span>&nbsp;России</div>
   <div class="counter" id="counter"></div>
-  <a class="gh-link primary" href="#" id="btnGuide">🎓 Новичку</a>
-  <a class="gh-link" href="coach/">🧠 WakeCoach</a>
-  <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots/issues/new?title=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D1%81%D0%BF%D0%BE%D1%82&body=%D0%9D%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%3A%0A%D0%93%D0%BE%D1%80%D0%BE%D0%B4%3A%0A%D0%90%D0%BA%D0%B2%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F%3A%0A%D0%9A%D0%B0%D1%82%D0%B5%D1%80%D0%B0%3A%0A%D0%A6%D0%B5%D0%BD%D1%8B%3A%0A%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%3A" target="_blank" rel="noopener">➕ Предложить спот</a>
+  <a class="gh-link primary" href="#" id="btnGuide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12.3V17c3 2.6 9 2.6 12 0v-4.7"/></svg>Новичку</a>
+  <a class="gh-link" href="coach/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.9-6.6"/><path d="M21 3v6h-6"/></svg>WakeCoach</a>
+  <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots/issues/new?title=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D1%81%D0%BF%D0%BE%D1%82&body=%D0%9D%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%3A%0A%D0%93%D0%BE%D1%80%D0%BE%D0%B4%3A%0A%D0%90%D0%BA%D0%B2%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F%3A%0A%D0%9A%D0%B0%D1%82%D0%B5%D1%80%D0%B0%3A%0A%D0%A6%D0%B5%D0%BD%D1%8B%3A%0A%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%3A" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Предложить спот</span></a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots" target="_blank" rel="noopener">GitHub</a>
 </header>
 
@@ -320,11 +416,11 @@
   <input type="search" id="q" placeholder="Поиск: клуб, город, катер…">
   <select id="fRegion"><option value="">Все регионы</option></select>
   <select id="fCity"><option value="">Все города</option></select>
-  <span class="chip" id="fTrain">🎓 с обучением</span>
-  <span class="chip" id="fBoat">🚤 катер указан</span>
-  <span class="chip" id="fStay">🏠 с проживанием</span>
-  <span class="chip" id="fFav">⭐ избранное</span>
-  <span class="chip" id="btnGeo">📍 рядом со мной</span>
+  <span class="chip" id="fTrain">с обучением</span>
+  <span class="chip" id="fBoat">катер указан</span>
+  <span class="chip" id="fStay">с проживанием</span>
+  <span class="chip" id="fFav">избранное</span>
+  <span class="chip" id="btnGeo">рядом со мной</span>
   <select id="fSort">
     <option value="default">Сортировка: обычная</option>
     <option value="price">Сначала дешевле</option>
@@ -333,7 +429,9 @@
 </div>
 
 <main>
-  <div id="map"></div>
+  <div id="map">
+    <div class="map-legend" id="mapLegend"></div>
+  </div>
   <aside id="list"></aside>
 </main>
 
@@ -413,6 +511,40 @@
 <script>
 const state = { q: "", region: "", city: "", train: false, boat: false, stay: false, fav: false, sort: "default", userPos: null, active: -1 };
 
+// ── Иконки (единый авторский набор, штрих 1.8) ──
+function svgIcon(paths) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+const ICONS = {
+  wave: svgIcon(`<path d="M2 13.5c2.2-3.6 4.8-3.6 7 0s4.8 3.6 7 0 4-3.2 6-1"/>`),
+  tag: svgIcon(`<path d="M12.6 2.6a2 2 0 0 0-1.4-.6H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/>`),
+  calendar: svgIcon(`<rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>`),
+  school: svgIcon(`<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12.3V17c3 2.6 9 2.6 12 0v-4.7"/>`),
+  home: svgIcon(`<path d="M3 10.8 12 3.5l9 7.3"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/>`),
+  pin: svgIcon(`<path d="M20 10c0 5.7-8 12-8 12s-8-6.3-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.8"/>`),
+  bulb: svgIcon(`<path d="M9.5 18h5M10.5 21.5h3"/><path d="M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1.2 1.4 1.2 2.2h5c0-.8.6-1.7 1.2-2.2A6.5 6.5 0 0 0 12 2.5z"/>`),
+  check: svgIcon(`<path d="M20 6.5 9 17.5l-5-5"/>`),
+  boat: svgIcon(`<path d="M3.5 15.5h17l-2.4 4h-12.2z"/><path d="M12 15.5v-11"/><path d="M12 5.5c3.6.8 5.6 4.4 5.6 4.4H12z"/>`),
+  sun: svgIcon(`<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>`),
+  link: svgIcon(`<path d="M9 17H7.5a5 5 0 0 1 0-10H9M15 7h1.5a5 5 0 0 1 0 10H15M8.5 12h7"/>`),
+  star: svgIcon(`<path d="M12 3.2l2.6 5.4 5.9.9-4.3 4.1 1 5.9-5.2-2.7-5.2 2.7 1-5.9-4.3-4.1 5.9-.9z"/>`)
+};
+
+// Иконки в чипы фильтров
+for (const [id, ic] of [["fTrain", "school"], ["fBoat", "boat"], ["fStay", "home"], ["fFav", "star"], ["btnGeo", "pin"]]) {
+  const el = document.getElementById(id);
+  el.innerHTML = ICONS[ic] + el.textContent;
+}
+
+const REGION_COLORS = {
+  "Москва и МО": "#2dd4bf",
+  "Санкт-Петербург и ЛО": "#38bdf8",
+  "Северо-Запад": "#818cf8",
+  "Юг России": "#fbbf24",
+  "Поволжье и Центр": "#4ade80",
+  "Урал, Сибирь и ДВ": "#f472b6"
+};
+
 // ── Утилиты: слаги, расстояние, цена/мин, сезон, избранное ──
 const TRANSLIT = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"c",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya" };
 function slug(name) {
@@ -477,9 +609,10 @@ function toggleFav(ev, i) {
 function shareSpot(ev, i) {
   ev.stopPropagation();
   const url = location.origin + location.pathname + "#" + SLUGS[i];
+  const btn = ev.target.closest("button");
   const done = () => {
-    ev.target.textContent = "✓ скопировано";
-    setTimeout(() => { ev.target.textContent = "🔗 ссылка"; }, 1500);
+    btn.innerHTML = ICONS.check + "скопировано";
+    setTimeout(() => { btn.innerHTML = ICONS.link + "ссылка"; }, 1500);
   };
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt("Ссылка на спот:", url));
   else prompt("Ссылка на спот:", url);
@@ -494,11 +627,19 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 
 const markers = [];
 
-function boatIcon(active) {
+function pinIcon(region, active) {
+  const c = REGION_COLORS[region] || "#2dd4bf";
+  const s = active ? 38 : 28;
   return L.divIcon({
     className: "",
-    html: `<div style="font-size:${active ? 30 : 24}px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); transform: translate(-50%,-50%);">🏄</div>`,
-    iconSize: [0, 0]
+    html: `<svg class="pin${active ? " pin-active" : ""}" width="${s}" height="${s}" viewBox="0 0 24 24">
+      <path d="M12 2a7.5 7.5 0 0 1 7.5 7.5C19.5 14.8 12 22 12 22S4.5 14.8 4.5 9.5A7.5 7.5 0 0 1 12 2z" fill="${c}" stroke="#0b171e" stroke-width="1.1"/>
+      ${active ? `<path d="M12 2a7.5 7.5 0 0 1 7.5 7.5C19.5 14.8 12 22 12 22S4.5 14.8 4.5 9.5A7.5 7.5 0 0 1 12 2z" fill="none" stroke="#e8f1f5" stroke-width="1.4"/>` : ""}
+      <circle cx="12" cy="9.5" r="2.9" fill="#0b171e" opacity=".55"/>
+    </svg>`,
+    iconSize: [s, s],
+    iconAnchor: [s / 2, s],
+    popupAnchor: [0, -s + 4]
   });
 }
 
@@ -540,28 +681,28 @@ function checkedLabel(s) {
   return `${MONTH_LABELS[+m] || ""} ${y}`.trim();
 }
 
-function cardHTML(s, i) {
-  const boats = (s.boats || []).map(b => `<span class="badge boat">🚤 ${esc(b)}</span>`).join("");
+function cardHTML(s, i, pos = 0) {
+  const boats = (s.boats || []).map(b => `<span class="badge boat">${ICONS.boat}${esc(b)}</span>`).join("");
   const cable = s.cable ? `<span class="badge cable">+ лебёдка</span>` : "";
   const rows = [];
-  if (s.wave) rows.push(`<div class="row"><span class="ico">🌊</span><span class="val">${esc(s.wave)}</span></div>`);
-  if (s.price) rows.push(`<div class="row"><span class="ico">💸</span><span class="val">${esc(s.price)}</span></div>`);
-  if (s.season) rows.push(`<div class="row"><span class="ico">📅</span><span class="val">${esc(s.season)}</span></div>`);
-  if (s.training) rows.push(`<div class="row"><span class="ico">🎓</span><span class="val">${esc(s.training)}</span></div>`);
-  if (s.stay) rows.push(`<div class="row"><span class="ico">🏠</span><span class="val">${esc(s.stay)}</span></div>`);
-  if (s.address) rows.push(`<div class="row"><span class="ico">📍</span><span class="val muted">${esc(s.address)}</span></div>`);
-  if (s.notes) rows.push(`<div class="row"><span class="ico">💡</span><span class="val muted">${esc(s.notes)}</span></div>`);
-  rows.push(`<div class="row"><span class="ico">✓</span><span class="val muted">данные проверены: ${checkedLabel(s)}</span></div>`);
-  const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">☀️ Прогноз</button>` : "";
-  const shareBtn = `<button class="fc-btn" onclick="shareSpot(event, ${i})">🔗 ссылка</button>`;
-  const favBtn = `<span class="fav-btn ${FAVS.has(SLUGS[i]) ? "on" : ""}" onclick="toggleFav(event, ${i})" title="В избранное">${FAVS.has(SLUGS[i]) ? "★" : "☆"}</span>`;
+  if (s.wave) rows.push(`<div class="row"><span class="ico">${ICONS.wave}</span><span class="val">${esc(s.wave)}</span></div>`);
+  if (s.price) rows.push(`<div class="row"><span class="ico">${ICONS.tag}</span><span class="val">${esc(s.price)}</span></div>`);
+  if (s.season) rows.push(`<div class="row"><span class="ico">${ICONS.calendar}</span><span class="val">${esc(s.season)}</span></div>`);
+  if (s.training) rows.push(`<div class="row"><span class="ico">${ICONS.school}</span><span class="val">${esc(s.training)}</span></div>`);
+  if (s.stay) rows.push(`<div class="row"><span class="ico">${ICONS.home}</span><span class="val">${esc(s.stay)}</span></div>`);
+  if (s.address) rows.push(`<div class="row"><span class="ico">${ICONS.pin}</span><span class="val muted">${esc(s.address)}</span></div>`);
+  if (s.notes) rows.push(`<div class="row"><span class="ico">${ICONS.bulb}</span><span class="val muted">${esc(s.notes)}</span></div>`);
+  rows.push(`<div class="row"><span class="ico">${ICONS.check}</span><span class="val muted">данные проверены: ${checkedLabel(s)}</span></div>`);
+  const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">${ICONS.sun}Прогноз</button>` : "";
+  const shareBtn = `<button class="fc-btn" onclick="shareSpot(event, ${i})">${ICONS.link}ссылка</button>`;
+  const favBtn = `<span class="fav-btn ${FAVS.has(SLUGS[i]) ? "on" : ""}" onclick="toggleFav(event, ${i})" title="В избранное" role="button" tabindex="0">${ICONS.star}</span>`;
   const season = SEASON_NOW[i] === null ? "" :
     SEASON_NOW[i] ? ` · <span class="dot-season dot-on">●</span> сезон`
                   : ` · <span class="dot-season dot-off">●</span> не сезон`;
   const dist = (state.userPos && s.lat != null)
     ? ` · <span class="dist">${Math.round(distKm(state.userPos[0], state.userPos[1], s.lat, s.lon))} км</span>` : "";
   const ppm = PPM[i] != null ? `<span class="badge ppm">≈${PPM[i]} ₽/мин</span>` : "";
-  return `<div class="card" id="card-${i}" data-i="${i}">
+  return `<div class="card" id="card-${i}" data-i="${i}" style="animation-delay:${Math.min(pos * 28, 280)}ms">
     ${favBtn}
     <h3>${esc(s.name)}</h3>
     <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}${season}${dist}</div>
@@ -583,7 +724,7 @@ function render() {
     idx.sort((a, b) => d(a) - d(b));
   }
   list.innerHTML = idx.length
-    ? idx.map(i => cardHTML(SPOTS[i], i)).join("")
+    ? idx.map((i, p) => cardHTML(SPOTS[i], i, p)).join("")
     : `<div class="empty">Ничего не нашлось — сбросьте фильтры</div>`;
   document.getElementById("counter").textContent =
     `${idx.length} из ${SPOTS.length} спотов`;
@@ -593,7 +734,7 @@ function render() {
   idx.forEach(i => {
     const s = SPOTS[i];
     if (s.lat == null || s.lon == null) return;
-    const m = L.marker([s.lat, s.lon], { icon: boatIcon(false) }).addTo(map);
+    const m = L.marker([s.lat, s.lon], { icon: pinIcon(s.region, i === state.active) }).addTo(map);
     m.bindPopup(`<div class="pp-name">${esc(s.name)}</div>
       <div class="pp-sub">${esc(s.city)} · ${esc(s.water || "")}</div>
       ${s.price ? `<div>💸 ${esc(s.price)}</div>` : ""}
@@ -618,6 +759,7 @@ function render() {
 
 function highlight(i, fromList) {
   state.active = i;
+  markers.forEach(m => m.marker.setIcon(pinIcon(SPOTS[m.i].region, m.i === i)));
   document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
   const el = document.getElementById("card-" + i);
   if (el) {
@@ -783,34 +925,41 @@ document.getElementById("fStay").addEventListener("click", e => { state.stay = !
 document.getElementById("fFav").addEventListener("click", e => { state.fav = !state.fav; e.target.classList.toggle("on", state.fav); render(); });
 document.getElementById("fSort").addEventListener("change", e => { state.sort = e.target.value; render(); });
 
-document.getElementById("btnGeo").addEventListener("click", e => {
+document.getElementById("btnGeo").addEventListener("click", () => {
+  const chip = document.getElementById("btnGeo");
+  const label = t => { chip.innerHTML = ICONS.pin + t; };
   if (state.userPos) {
     state.userPos = null;
     state.sort = "default";
     document.getElementById("fSort").value = "default";
-    e.target.classList.remove("on");
+    chip.classList.remove("on");
     render();
     return;
   }
   if (!navigator.geolocation) { alert("Геолокация не поддерживается браузером"); return; }
-  e.target.textContent = "📍 определяю…";
+  label("определяю…");
   navigator.geolocation.getCurrentPosition(
     pos => {
       state.userPos = [pos.coords.latitude, pos.coords.longitude];
       state.sort = "dist";
       document.getElementById("fSort").value = "dist";
-      e.target.textContent = "📍 рядом со мной";
-      e.target.classList.add("on");
+      label("рядом со мной");
+      chip.classList.add("on");
       render();
       map.flyTo(state.userPos, 9, { duration: .8 });
     },
     () => {
-      e.target.textContent = "📍 рядом со мной";
+      label("рядом со мной");
       alert("Не удалось определить местоположение — разрешите доступ к геолокации");
     },
     { timeout: 10000 }
   );
 });
+
+document.getElementById("mapLegend").innerHTML =
+  Object.entries(REGION_COLORS)
+    .map(([r, c]) => `<span><i style="background:${c}"></i>${r.replace("Санкт-Петербург и ЛО", "СПб и ЛО").replace("Урал, Сибирь и ДВ", "Урал · Сибирь · ДВ")}</span>`)
+    .join("");
 
 initFilters();
 render();

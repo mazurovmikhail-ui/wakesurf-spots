@@ -1,4 +1,4 @@
-const CACHE = "wakespots-v1";
+const CACHE = "wakespots-v2";
 const ASSETS = [
   ".",
   "index.html",
@@ -6,6 +6,8 @@ const ASSETS = [
   "manifest.json",
   "icon-192.png",
   "icon-512.png",
+  "fonts/unbounded-700-cyrillic.woff2",
+  "fonts/unbounded-700-latin.woff2",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];

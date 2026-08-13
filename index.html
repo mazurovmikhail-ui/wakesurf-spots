@@ -215,6 +215,112 @@
     justify-content: center;
   }
 
+  /* ── Bottom sheet карточки (мобильный) ── */
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1500;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 30px var(--shadow);
+    transform: translateY(105%);
+    transition: transform .32s cubic-bezier(.16, 1, .3, 1);
+    max-height: 72vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-grip { display: flex; align-items: center; justify-content: center; padding: 8px 10px 2px; position: relative; touch-action: none; }
+  .grip-bar { width: 42px; height: 4px; border-radius: 4px; background: var(--line); }
+  .sheet-close {
+    position: absolute;
+    right: 10px;
+    top: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 3px 9px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .sheet-body { overflow-y: auto; padding: 6px 12px 20px; }
+  .sheet-body .card { margin-bottom: 0; cursor: default; animation: none; }
+  .sheet-body .card:hover { transform: none; box-shadow: none; }
+  @media (min-width: 801px) { .sheet { display: none; } }
+
+  /* ── Онбординг ── */
+  .onb-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    background: var(--overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .onb {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 28px 24px 20px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 16px 48px var(--shadow);
+  }
+  .onb-icon { display: flex; justify-content: center; color: var(--accent); margin-bottom: 14px; }
+  .onb-icon svg { width: 44px; height: 44px; }
+  .onb h3 { font-family: "Unbounded", sans-serif; font-size: 15px; line-height: 1.4; margin-bottom: 8px; }
+  .onb p { font-size: 13.5px; color: var(--muted); line-height: 1.55; min-height: 63px; }
+  .onb-dots { display: flex; justify-content: center; gap: 6px; margin: 14px 0; }
+  .onb-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s; }
+  .onb-dots i.on { background: var(--accent); }
+  .onb-actions { display: flex; gap: 8px; }
+  .onb-skip {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 9px;
+    font-size: 13.5px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .onb-next {
+    flex: 2;
+    background: var(--accent);
+    border: none;
+    color: var(--on-accent);
+    border-radius: 10px;
+    padding: 9px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .onb-next:hover { background: var(--accent-dim); }
+
+  /* ── Скелетоны загрузки прогноза ── */
+  .skel { background: var(--panel-2); border-radius: 8px; position: relative; overflow: hidden; }
+  .skel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .08), transparent);
+    animation: shimmer 1.2s infinite;
+  }
+  @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
+  .skel-days { display: flex; gap: 4px; }
+
   /* ── Дизайн-пасс: типографика, иконки, поверхности браузера, движение ── */
   ::selection { background: var(--accent); color: var(--sel-fg); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
@@ -542,6 +648,24 @@
   <aside id="list"></aside>
 </main>
 
+<div class="sheet" id="spotSheet" aria-hidden="true">
+  <div class="sheet-grip"><span class="grip-bar"></span><button class="sheet-close" id="sheetClose" aria-label="Закрыть">✕</button></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<div class="onb-overlay" id="onbOverlay" style="display:none">
+  <div class="onb">
+    <div class="onb-icon" id="onbIcon"></div>
+    <h3 id="onbTitle"></h3>
+    <p id="onbText"></p>
+    <div class="onb-dots" id="onbDots"></div>
+    <div class="onb-actions">
+      <button class="onb-skip" id="onbSkip">Пропустить</button>
+      <button class="onb-next" id="onbNext">Далее</button>
+    </div>
+  </div>
+</div>
+
 <div class="guide-overlay" id="guideOverlay">
   <div class="guide">
     <button class="guide-close" id="btnGuideClose">✕ закрыть</button>
@@ -789,7 +913,12 @@ function pinIcon(region, active) {
   });
 }
 
-function norm(s) { return (s || "").toString().toLowerCase(); }
+// Поиск без учёта регистра, ё/е и раскладки клавиатуры
+const KB_EN2RU = { q:"й",w:"ц",e:"у",r:"к",t:"е",y:"н",u:"г",i:"ш",o:"щ",p:"з","[":"х","]":"ъ",a:"ф",s:"ы",d:"в",f:"а",g:"п",h:"р",j:"о",k:"л",l:"д",";":"ж","'":"э",z:"я",x:"ч",c:"с",v:"м",b:"и",n:"т",m:"ь",",":"б",".":"ю" };
+function norm(s) { return (s || "").toString().toLowerCase().replace(/ё/g, "е"); }
+function toRuLayout(s) {
+  return s.split("").map(c => KB_EN2RU[c] || c).join("");
+}
 
 function matches(s) {
   if (state.region && s.region !== state.region) return false;
@@ -799,8 +928,9 @@ function matches(s) {
   if (state.stay && !s.stay) return false;
   if (state.fav && !FAVS.has(slug(s.name))) return false;
   if (state.q) {
-    const hay = norm([s.name, s.city, s.water, s.address, (s.boats||[]).join(" "), s.notes, s.stay].join(" "));
-    if (!hay.includes(norm(state.q))) return false;
+    const hay = norm([s.name, s.city, s.region, s.water, s.address, (s.boats||[]).join(" "), s.notes, s.stay].join(" "));
+    const q = norm(state.q);
+    if (!hay.includes(q) && !hay.includes(toRuLayout(q))) return false;
   }
   return true;
 }
@@ -882,11 +1012,13 @@ function render() {
     if (s.lat == null || s.lon == null) return;
     const m = L.marker([s.lat, s.lon], { icon: pinIcon(s.region, i === state.active) });
     cluster.addLayer(m);
-    m.bindPopup(`<div class="pp-name">${esc(s.name)}</div>
-      <div class="pp-sub">${esc(s.city)} · ${esc(s.water || "")}</div>
-      ${s.price ? `<div>💸 ${esc(s.price)}</div>` : ""}
-      <div class="pp-link" onclick="focusCard(${i})">Открыть карточку ↓</div>`);
-    m.on("click", () => highlight(i, false));
+    if (!isMobile()) {
+      m.bindPopup(`<div class="pp-name">${esc(s.name)}</div>
+        <div class="pp-sub">${esc(s.city)} · ${esc(s.water || "")}</div>
+        ${s.price ? `<div>${esc(s.price)}</div>` : ""}
+        <div class="pp-link" onclick="focusCard(${i})">Открыть карточку ↓</div>`);
+    }
+    m.on("click", () => { highlight(i, false); if (isMobile()) openSheet(i); });
     markers.push({ i, marker: m });
   });
 
@@ -917,6 +1049,48 @@ function highlight(i, fromList) {
 
 function focusCard(i) { highlight(i, false); }
 
+// ── Bottom sheet: карточка спота поверх карты на телефоне ──
+function isMobile() { return window.matchMedia("(max-width: 800px)").matches; }
+const sheet = document.getElementById("spotSheet");
+const sheetBody = document.getElementById("sheetBody");
+
+function openSheet(i) {
+  sheetBody.innerHTML = cardHTML(SPOTS[i], i);
+  sheet.classList.add("open");
+  sheet.setAttribute("aria-hidden", "false");
+  sheetBody.scrollTop = 0;
+  const fav = sheetBody.querySelector(".fav-btn");
+  if (fav) fav.addEventListener("click", () => setTimeout(() => openSheet(i), 30));
+}
+function closeSheet() {
+  sheet.classList.remove("open");
+  sheet.setAttribute("aria-hidden", "true");
+}
+document.getElementById("sheetClose").addEventListener("click", closeSheet);
+// Смена десктоп/мобильный: перепривязать попапы и убрать шторку
+matchMedia("(max-width: 800px)").addEventListener("change", () => { closeSheet(); render(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+map.on("movestart", () => { if (sheet.classList.contains("open")) closeSheet(); });
+
+// Свайп вниз по «ручке» — закрыть
+(() => {
+  const grip = sheet.querySelector(".sheet-grip");
+  let startY = null;
+  grip.addEventListener("touchstart", e => { startY = e.touches[0].clientY; sheet.style.transition = "none"; }, { passive: true });
+  grip.addEventListener("touchmove", e => {
+    if (startY == null) return;
+    const dy = Math.max(0, e.touches[0].clientY - startY);
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  grip.addEventListener("touchend", e => {
+    sheet.style.transition = "";
+    sheet.style.transform = "";
+    const dy = e.changedTouches[0].clientY - (startY ?? 0);
+    if (dy > 70) closeSheet();
+    startY = null;
+  });
+})();
+
 // ── Прогноз погоды и волны (Open-Meteo, без ключа) ──
 const fcCache = {};
 const WMO_ICONS = [
@@ -938,7 +1112,8 @@ async function toggleForecast(ev, i) {
   if (box.style.display !== "none") { box.style.display = "none"; return; }
   box.style.display = "block";
   if (fcCache[i]) { box.innerHTML = fcCache[i]; return; }
-  box.innerHTML = `<div class="fc-glass">Загружаю прогноз…</div>`;
+  box.innerHTML = `<div class="skel-days">${Array.from({length: 7}, () => `<div class="skel" style="flex:1 0 56px;height:78px"></div>`).join("")}</div>
+    <div class="skel" style="height:14px;width:70%;margin-top:10px"></div>`;
   const s = SPOTS[i];
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}` +
@@ -1137,6 +1312,36 @@ document.getElementById("btnGuide").addEventListener("click", e => {
 document.getElementById("btnGuideClose").addEventListener("click", () => guideOverlay.classList.remove("open"));
 guideOverlay.addEventListener("click", e => { if (e.target === guideOverlay) guideOverlay.classList.remove("open"); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") guideOverlay.classList.remove("open"); });
+
+// ── Онбординг при первом входе ──
+(() => {
+  const KEY = "wakeonb";
+  try { if (localStorage.getItem(KEY)) return; } catch (e) { return; }
+  const steps = [
+    { icon: ICONS.pin, t: "106 спотов на карте", p: "Все клубы катерного вейксёрфа России — от Калининграда до Владивостока. Цвет пина показывает регион, число в кружке — сколько спотов рядом." },
+    { icon: ICONS.school, t: "Фильтры под свою задачу", p: "Нужен инструктор, конкретный катер или ночёвка на споте? Отберите нужное чипами, а сортировка покажет, где дешевле за минуту катания." },
+    { icon: ICONS.sun, t: "Прогноз и штилевые окна", p: "У каждого спота — погода на неделю, температура воды и часы, когда ветер стихает и вода становится стеклянной." }
+  ];
+  let i = 0;
+  const ov = document.getElementById("onbOverlay");
+  const dots = document.getElementById("onbDots");
+  dots.innerHTML = steps.map(() => "<i></i>").join("");
+  function draw() {
+    document.getElementById("onbIcon").innerHTML = steps[i].icon;
+    document.getElementById("onbTitle").textContent = steps[i].t;
+    document.getElementById("onbText").textContent = steps[i].p;
+    document.getElementById("onbNext").textContent = i === steps.length - 1 ? "Поехали" : "Далее";
+    [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
+  }
+  function done() {
+    ov.style.display = "none";
+    try { localStorage.setItem(KEY, "1"); } catch (e) {}
+  }
+  document.getElementById("onbNext").addEventListener("click", () => { i < steps.length - 1 ? (i++, draw()) : done(); });
+  document.getElementById("onbSkip").addEventListener("click", done);
+  draw();
+  ov.style.display = "flex";
+})();
 
 // PWA: сервис-воркер для установки на телефон и офлайна
 if ("serviceWorker" in navigator) {

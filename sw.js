@@ -1,4 +1,4 @@
-const CACHE = "wakespots-v2";
+const CACHE = "wakespots-v3";
 const ASSETS = [
   ".",
   "index.html",
@@ -8,8 +8,10 @@ const ASSETS = [
   "icon-512.png",
   "fonts/unbounded-700-cyrillic.woff2",
   "fonts/unbounded-700-latin.woff2",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  "libs/leaflet.css",
+  "libs/leaflet.js",
+  "libs/leaflet.markercluster.js",
+  "libs/MarkerCluster.css"
 ];
 
 self.addEventListener("install", e => {

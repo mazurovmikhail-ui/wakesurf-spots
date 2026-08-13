@@ -8,7 +8,8 @@
 <meta name="theme-color" content="#14252f">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="libs/leaflet.css">
+<link rel="stylesheet" href="libs/MarkerCluster.css">
 <link rel="preload" href="fonts/unbounded-700-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* Unbounded (OFL) — фирменная акциденция, self-hosted для офлайна */
@@ -38,7 +39,70 @@
     --accent: #2dd4bf;
     --accent-dim: #14b8a6;
     --warn: #fbbf24;
+    --ok: #4ade80;
+    --bad: #f87171;
+    --shadow: rgba(0, 0, 0, .35);
+    --sel-fg: #04211d;
+    --on-accent: #04211d;
+    --legend-bg: rgba(13, 27, 36, .82);
+    --overlay: rgba(6, 14, 19, .75);
+    --boat-fg: #9bd1ee;
+    --boat-line: #2d6a8a;
+    --cable-fg: #eed49b;
+    --cable-line: #8a6a2d;
+    --ppm-fg: #bef264;
+    --ppm-line: #3f6212;
     --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eef4f7;
+      --panel: #ffffff;
+      --panel-2: #e7eff3;
+      --line: #d2dfe5;
+      --text: #16323d;
+      --muted: #587482;
+      --accent: #0d9488;
+      --accent-dim: #0f766e;
+      --warn: #b45309;
+      --ok: #15803d;
+      --bad: #b91c1c;
+      --shadow: rgba(23, 60, 73, .16);
+      --sel-fg: #ffffff;
+      --on-accent: #ffffff;
+      --legend-bg: rgba(255, 255, 255, .88);
+      --overlay: rgba(15, 40, 50, .4);
+      --boat-fg: #0c5a7d;
+      --boat-line: #9cc3d8;
+      --cable-fg: #8a5a10;
+      --cable-line: #d8bc85;
+      --ppm-fg: #3f6212;
+      --ppm-line: #b9cf6e;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef4f7;
+    --panel: #ffffff;
+    --panel-2: #e7eff3;
+    --line: #d2dfe5;
+    --text: #16323d;
+    --muted: #587482;
+    --accent: #0d9488;
+    --accent-dim: #0f766e;
+    --warn: #b45309;
+    --ok: #15803d;
+    --bad: #b91c1c;
+    --shadow: rgba(23, 60, 73, .16);
+    --sel-fg: #ffffff;
+    --on-accent: #ffffff;
+    --legend-bg: rgba(255, 255, 255, .88);
+    --overlay: rgba(15, 40, 50, .4);
+    --boat-fg: #0c5a7d;
+    --boat-line: #9cc3d8;
+    --cable-fg: #8a5a10;
+    --cable-line: #d8bc85;
+    --ppm-fg: #3f6212;
+    --ppm-line: #b9cf6e;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -74,13 +138,13 @@
     white-space: nowrap;
   }
   .gh-link:hover { color: var(--accent); border-color: var(--accent-dim); }
-  .gh-link.primary { color: #04211d; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+  .gh-link.primary { color: var(--on-accent); background: var(--accent); border-color: var(--accent); font-weight: 700; }
 
   /* ── Раздел «Новичку» ── */
   .guide-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(6, 14, 19, .75);
+    background: var(--overlay);
     z-index: 2000;
     display: none;
     overflow-y: auto;
@@ -143,7 +207,7 @@
     height: 22px;
     border-radius: 50%;
     background: var(--accent-dim);
-    color: #04211d;
+    color: var(--on-accent);
     font-weight: 700;
     font-size: 12.5px;
     display: flex;
@@ -152,7 +216,7 @@
   }
 
   /* ── Дизайн-пасс: типографика, иконки, поверхности браузера, движение ── */
-  ::selection { background: var(--accent); color: #04211d; }
+  ::selection { background: var(--accent); color: var(--sel-fg); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
   * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   aside::-webkit-scrollbar, .guide-overlay::-webkit-scrollbar { width: 8px; }
@@ -200,7 +264,7 @@
     flex-wrap: wrap;
     gap: 4px 10px;
     max-width: 240px;
-    background: rgba(13, 27, 36, .82);
+    background: var(--legend-bg);
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 7px 10px;
@@ -229,7 +293,7 @@
   .chip.on:hover { color: #04211d; }
   .links a:hover, .links .fc-btn:hover { transform: translateY(-1px); }
   .card { transition: border-color .18s ease, transform .2s ease, box-shadow .2s ease; }
-  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--shadow); }
   .card.active:hover { transform: none; }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -289,10 +353,26 @@
     user-select: none;
     white-space: nowrap;
   }
-  .chip.on { background: var(--accent-dim); border-color: var(--accent-dim); color: #04211d; font-weight: 600; }
+  .chip.on { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--on-accent); font-weight: 600; }
 
   main { flex: 1; display: flex; min-height: 0; }
-  #map { flex: 1; min-width: 0; background: #0a141b; }
+  #map { flex: 1; min-width: 0; background: var(--bg); position: relative; }
+
+  .cluster-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 2px solid var(--bg);
+    font-weight: 700;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 8px var(--shadow);
+  }
 
   aside {
     width: 400px;
@@ -327,9 +407,9 @@
   .fav-btn.on { color: var(--warn); }
   .card h3 { padding-right: 28px; }
   .dot-season { font-size: 10px; vertical-align: 1px; }
-  .dot-on { color: #4ade80; }
-  .dot-off { color: #64748b; }
-  .badge.ppm { border-color: #3f6212; color: #bef264; }
+  .dot-on { color: var(--ok); }
+  .dot-off { color: var(--muted); }
+  .badge.ppm { border-color: var(--ppm-line); color: var(--ppm-fg); }
   .dist { color: var(--accent); font-weight: 600; }
   .card:hover { border-color: var(--accent-dim); }
   .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -344,8 +424,8 @@
     border: 1px solid var(--line);
     color: var(--text);
   }
-  .badge.boat { border-color: #2d6a8a; color: #9bd1ee; }
-  .badge.cable { border-color: #8a6a2d; color: #eed49b; }
+  .badge.boat { border-color: var(--boat-line); color: var(--boat-fg); }
+  .badge.cable { border-color: var(--cable-line); color: var(--cable-fg); }
   .row { font-size: 13px; margin: 4px 0; display: flex; gap: 6px; line-height: 1.45; }
   .row .ico { flex: 0 0 18px; text-align: center; }
   .row .val { color: var(--text); }
@@ -353,7 +433,7 @@
   .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .links a {
     font-size: 12.5px;
-    color: #04211d;
+    color: var(--on-accent);
     background: var(--accent);
     padding: 6px 11px;
     border-radius: 8px;
@@ -387,9 +467,9 @@
   }
   .fc-day .d { color: var(--muted); }
   .fc-day .i { font-size: 16px; }
-  .fc-wind-ok { color: #4ade80; }
+  .fc-wind-ok { color: var(--ok); }
   .fc-wind-mid { color: var(--warn); }
-  .fc-wind-bad { color: #f87171; }
+  .fc-wind-bad { color: var(--bad); }
   .fc-glass { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .fc-glass b { color: var(--accent); font-weight: 600; }
   .fc-note { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
@@ -406,7 +486,7 @@
   .pp-sub { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
   .pp-link { color: var(--accent); font-weight: 600; cursor: pointer; font-size: 12.5px; }
   .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
-  .leaflet-control-attribution { background: rgba(13,27,36,.7) !important; color: var(--muted) !important; }
+  .leaflet-control-attribution { background: var(--legend-bg) !important; color: var(--muted) !important; }
   .leaflet-control-attribution a { color: var(--muted) !important; }
 
   /* Mobile: map on top, list under it; filters in one scrollable row */
@@ -434,6 +514,7 @@
   <div class="counter" id="counter"></div>
   <a class="gh-link primary" href="#" id="btnGuide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12.3V17c3 2.6 9 2.6 12 0v-4.7"/></svg>Новичку</a>
   <a class="gh-link" href="coach/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.9-6.6"/><path d="M21 3v6h-6"/></svg>WakeCoach</a>
+  <a class="gh-link" href="#" id="btnTheme" title="Переключить тему"></a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots/issues/new?title=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D1%81%D0%BF%D0%BE%D1%82&body=%D0%9D%D0%B0%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%3A%0A%D0%93%D0%BE%D1%80%D0%BE%D0%B4%3A%0A%D0%90%D0%BA%D0%B2%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F%3A%0A%D0%9A%D0%B0%D1%82%D0%B5%D1%80%D0%B0%3A%0A%D0%A6%D0%B5%D0%BD%D1%8B%3A%0A%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%3A" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Предложить спот</span></a>
   <a class="gh-link" href="https://github.com/mazurovmikhail-ui/wakesurf-spots" target="_blank" rel="noopener">GitHub</a>
 </header>
@@ -533,7 +614,8 @@
 </div>
 
 <script>window.addEventListener("error", e => { window.__lastErr = (e.error && e.error.stack) || e.message; });</script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="libs/leaflet.js"></script>
+<script src="libs/leaflet.markercluster.js"></script>
 <script src="data.js"></script>
 <script>
 const state = { q: "", region: "", city: "", train: false, boat: false, stay: false, fav: false, sort: "default", userPos: null, active: -1 };
@@ -645,11 +727,48 @@ function shareSpot(ev, i) {
   else prompt("Ссылка на спот:", url);
 }
 
+// ── Тема: тёмная по умолчанию, уважает prefers-color-scheme, переключатель ──
+const THEME_KEY = "waketheme";
+const moonIcon = svgIcon(`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>`);
+function tileUrl(t) {
+  return `https://{s}.basemaps.cartocdn.com/${t === "light" ? "light_all" : "dark_all"}/{z}/{x}/{y}{r}.png`;
+}
+function currentTheme() {
+  return document.documentElement.dataset.theme
+    || localStorage.getItem(THEME_KEY)
+    || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+}
+document.documentElement.dataset.theme = currentTheme();
+
 const map = L.map("map", { zoomControl: true }).setView([56.5, 44], 4);
 map.attributionControl.setPrefix("");
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+const tiles = L.tileLayer(tileUrl(currentTheme()), {
   attribution: '&copy; OpenStreetMap &copy; CARTO',
   maxZoom: 19
+}).addTo(map);
+
+function applyTheme(t, save) {
+  document.documentElement.dataset.theme = t;
+  if (save) { try { localStorage.setItem(THEME_KEY, t); } catch (e) {} }
+  tiles.setUrl(tileUrl(t));
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "light" ? "#ffffff" : "#14252f");
+  document.getElementById("btnTheme").innerHTML = t === "light" ? moonIcon : ICONS.sun;
+}
+document.getElementById("btnTheme").addEventListener("click", e => {
+  e.preventDefault();
+  applyTheme(currentTheme() === "light" ? "dark" : "light", true);
+});
+applyTheme(currentTheme(), false);
+
+// ── Кластеризация маркеров ──
+const cluster = L.markerClusterGroup({
+  maxClusterRadius: 45,
+  showCoverageOnHover: false,
+  iconCreateFunction: c => {
+    const n = c.getChildCount();
+    const s = n < 10 ? 34 : n < 30 ? 40 : 46;
+    return L.divIcon({ className: "", html: `<div class="cluster-pin">${n}</div>`, iconSize: [s, s] });
+  }
 }).addTo(map);
 
 const markers = [];
@@ -756,12 +875,13 @@ function render() {
   document.getElementById("counter").textContent =
     `${idx.length} из ${SPOTS.length} спотов`;
 
-  markers.forEach(m => map.removeLayer(m.marker));
+  cluster.clearLayers();
   markers.length = 0;
   idx.forEach(i => {
     const s = SPOTS[i];
     if (s.lat == null || s.lon == null) return;
-    const m = L.marker([s.lat, s.lon], { icon: pinIcon(s.region, i === state.active) }).addTo(map);
+    const m = L.marker([s.lat, s.lon], { icon: pinIcon(s.region, i === state.active) });
+    cluster.addLayer(m);
     m.bindPopup(`<div class="pp-name">${esc(s.name)}</div>
       <div class="pp-sub">${esc(s.city)} · ${esc(s.water || "")}</div>
       ${s.price ? `<div>💸 ${esc(s.price)}</div>` : ""}
@@ -776,9 +896,9 @@ function render() {
       highlight(i, true);
       const s = SPOTS[i];
       if (s.lat != null) {
-        map.flyTo([s.lat, s.lon], Math.max(map.getZoom(), 11), { duration: .6 });
         const mm = markers.find(m => m.i === i);
-        if (mm) mm.marker.openPopup();
+        if (mm) cluster.zoomToShowLayer(mm.marker, () => mm.marker.openPopup());
+        else map.flyTo([s.lat, s.lon], Math.max(map.getZoom(), 11), { duration: .6 });
       }
     });
   });
@@ -1000,9 +1120,9 @@ function openFromHash() {
   const s = SPOTS[i];
   highlight(i, false);
   if (s.lat != null) {
-    map.flyTo([s.lat, s.lon], 12, { duration: .8 });
     const mm = markers.find(m => m.i === i);
-    if (mm) setTimeout(() => mm.marker.openPopup(), 900);
+    if (mm) cluster.zoomToShowLayer(mm.marker, () => mm.marker.openPopup());
+    else map.flyTo([s.lat, s.lon], 12, { duration: .8 });
   }
 }
 window.addEventListener("hashchange", openFromHash);

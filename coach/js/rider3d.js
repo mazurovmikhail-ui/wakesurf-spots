@@ -94,29 +94,52 @@ export function create(canvas) {
   const FEETY = -0.85;
   scene.add(makeWaveAndWater(FEETY));
 
-  // материал «манекен» (мягкий телесно-серый, приближено к реалистичному телу)
-  const skin = new THREE.MeshStandardMaterial({ color: 0xc7bcb0, roughness: 0.8, metalness: 0.04, emissive: 0x241d17, emissiveIntensity: 0.35 });
+  // Материалы: тело в гидрокостюме (тёмный неопрен с мягким бликом), открытая кожа
+  // (голова, кисти) — матовая. Разные материалы читаются как «человек», а не манекен.
+  const suit = new THREE.MeshStandardMaterial({ color: 0x27313f, roughness: 0.55, metalness: 0.12, emissive: 0x0d1520, emissiveIntensity: 0.5 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd8bda4, roughness: 0.75, metalness: 0.03, emissive: 0x2b1f16, emissiveIntensity: 0.3 });
   const figure = new THREE.Group(); scene.add(figure);
 
-  // конечности: цилиндр + сферы на концах = капсула с объёмом (разная толщина)
+  // Конечности сужаются к дальнему концу (бедро → колено, плечо → локоть),
+  // а сечение овальное (сплющено по Z) — как у человека, а не труба.
   const LIMBS = [
-    [11, 13, 0.05], [13, 15, 0.038], [12, 14, 0.05], [14, 16, 0.038],   // руки: плечо, предплечье
-    [23, 25, 0.078], [25, 27, 0.055], [24, 26, 0.078], [26, 28, 0.055],  // ноги: бедро, голень
+    [11, 13, 0.058, 0.045], [13, 15, 0.045, 0.036],   // плечо, предплечье
+    [12, 14, 0.058, 0.045], [14, 16, 0.045, 0.036],
+    [23, 25, 0.092, 0.068], [25, 27, 0.068, 0.045],   // бедро, голень
+    [24, 26, 0.092, 0.068], [26, 28, 0.068, 0.045],
   ];
-  const limbMesh = LIMBS.map(([, , r]) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, 14), skin); figure.add(m); return m; });
-  const JOINTR = { 11: 0.075, 12: 0.075, 13: 0.05, 14: 0.05, 15: 0.045, 16: 0.045, 23: 0.09, 24: 0.09, 25: 0.075, 26: 0.075, 27: 0.055, 28: 0.055 };
+  const limbMesh = LIMBS.map(([, , rTop, rBot]) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rBot, rTop, 1, 16), suit);
+    m.userData.flat = 0.82;
+    figure.add(m); return m;
+  });
+  const JOINTR = { 11: 0.072, 12: 0.072, 13: 0.048, 14: 0.048, 15: 0.042, 16: 0.042, 23: 0.088, 24: 0.088, 25: 0.07, 26: 0.07, 27: 0.05, 28: 0.05 };
   const capMesh = {};
-  for (const j of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) { const m = new THREE.Mesh(new THREE.SphereGeometry(JOINTR[j], 16, 12), skin); figure.add(m); capMesh[j] = m; }
+  for (const j of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(JOINTR[j], 16, 12), suit);
+    m.scale.z = 0.85;
+    figure.add(m); capMesh[j] = m;
+  }
 
-  // корпус: торс, грудь, таз, шея, голова, кисти, стопы
-  const torsoMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.11, 1, 18), skin); figure.add(torsoMesh);
-  const chestMesh = new THREE.Mesh(new THREE.SphereGeometry(0.125, 18, 14), skin); figure.add(chestMesh);
-  const pelvisMesh = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 14), skin); figure.add(pelvisMesh);
-  const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.045, 1, 10), skin); figure.add(neckMesh);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 22, 18), skin); figure.add(head);
-  const handMesh = { 15: new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), skin), 16: new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), skin) };
+  // Корпус: грудная клетка шире таза, талия уже обеих — силуэт вместо цилиндра
+  const torsoMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.125, 1, 20), suit);
+  torsoMesh.userData.flat = 0.68; figure.add(torsoMesh);
+  const chestMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16), suit);
+  chestMesh.scale.set(1, 0.85, 0.66); figure.add(chestMesh);
+  const pelvisMesh = new THREE.Mesh(new THREE.SphereGeometry(0.125, 20, 16), suit);
+  pelvisMesh.scale.set(1, 0.9, 0.72); figure.add(pelvisMesh);
+  const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.052, 1, 12), skin);
+  neckMesh.userData.flat = 0.9; figure.add(neckMesh);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.108, 24, 20), skin);
+  head.scale.set(0.92, 1.12, 1); figure.add(head);
+  const handMesh = {
+    15: new THREE.Mesh(new THREE.SphereGeometry(0.048, 14, 12), skin),
+    16: new THREE.Mesh(new THREE.SphereGeometry(0.048, 14, 12), skin)
+  };
+  handMesh[15].scale.set(1, 0.75, 0.55); handMesh[16].scale.set(1, 0.75, 0.55);
   figure.add(handMesh[15], handMesh[16]);
-  const footMesh = { 27: new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.2), skin), 28: new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.2), skin) };
+  const FOOT_H = 0.05, BOARD_TH = 0.045; // высота стопы и толщина деки — для стыковки
+  const footMesh = { 27: new THREE.Mesh(new THREE.BoxGeometry(0.085, FOOT_H, 0.2), suit), 28: new THREE.Mesh(new THREE.BoxGeometry(0.085, FOOT_H, 0.2), suit) };
   figure.add(footMesh[27], footMesh[28]);
 
   const board = makeBoard(); figure.add(board);
@@ -131,12 +154,14 @@ export function create(canvas) {
     tmp.copy(b).sub(a); const len = tmp.length() || 1e-4;
     mesh.position.copy(a).add(b).multiplyScalar(0.5);
     mesh.quaternion.copy(q.setFromUnitVectors(UP, tmp.clone().normalize()));
-    mesh.scale.set(1, len, 1);
+    const flat = mesh.userData.flat ?? 1; // овальное сечение вместо круглой трубы
+    mesh.scale.set(1, len, flat);
   }
   const cGreen = new THREE.Color(0x34d399), cWarn = new THREE.Color(0xfbbf24);
 
   let frames = [], idx = 0, playing = true, fps = 12, lastT = 0, hasWorld = false, _raw = [];
   let gScale = 3, depthFactor = 0.35; // единый масштаб на клип + слабая глубина (почти 2D)
+  let shifts = []; // покадровый вертикальный сдвиг: гасит дрейф камеры, сохраняя динамику
 
   function smooth(arr, win) {
     const N = arr.length, out = arr.map((f) => f.map((p) => ({ ...p }))); const k = win >> 1;
@@ -165,9 +190,36 @@ export function create(canvas) {
     }
     hs.sort((a, b) => a - b);
     gScale = 1.7 / Math.max(hs.length ? hs[hs.length >> 1] : 0.5, 1e-3);
+    // Вертикальная привязка к воде. Прижимать стопы к воде покадрово нельзя —
+    // тогда исчезают приседания и прыжки; держать один сдвиг на клип тоже нельзя —
+    // фигуру уносит вместе с движением камеры. Поэтому вычитаем только медленный
+    // дрейф: сглаживаем уровень стоп широким окном (~2 сек) и привязываем к нему.
+    const fy = frames.map(f => footYOf(f));
+    for (let i = 0; i < fy.length; i++) if (fy[i] == null) fy[i] = fy[i - 1] ?? 0;
+    const win = Math.max(5, Math.min(41, Math.floor(frames.length / 6) | 1));
+    const k = win >> 1;
+    shifts = fy.map((_, i) => {
+      let s = 0, n = 0;
+      for (let w = Math.max(0, i - k); w <= Math.min(fy.length - 1, i + k); w++) { s += fy[w]; n++; }
+      return FEETY + 0.02 - s / n;
+    });
     idx = 0; if (frames.length) draw(frames[0]);
   }
   function setDepth(d) { depthFactor = d; if (frames.length) draw(frames[idx]); }
+
+  // уровень стоп в кадре (в тех же координатах, что и draw)
+  function footYOf(lm) {
+    let cx, cy;
+    if (vis(lm, 23) && vis(lm, 24)) { cx = (lm[23].x + lm[24].x) / 2; cy = (lm[23].y + lm[24].y) / 2; }
+    else {
+      let sx = 0, sy = 0, n = 0;
+      for (let i = 0; i < 33; i++) if (vis(lm, i)) { sx += lm[i].x; sy += lm[i].y; n++; }
+      if (!n) return null;
+      cx = sx / n; cy = sy / n;
+    }
+    const ys = [27, 28, 31, 32].filter(i => vis(lm, i)).map(i => -(lm[i].y - cy) * gScale);
+    return ys.length ? Math.min(...ys) : null;
+  }
 
   const vis = (lm, i) => (lm[i] && (lm[i].visibility ?? 1)) >= VIS;
 
@@ -181,10 +233,8 @@ export function create(canvas) {
     const S = gScale;
     const P = (i) => new THREE.Vector3((lm[i].x - cx) * S, -(lm[i].y - cy) * S, -((lm[i].z || 0)) * S * depthFactor);
 
-    // ступни на воду
-    const feetPts = [27, 28, 31, 32].filter((i) => vis(lm, i)).map((i) => P(i).y);
-    const footY = feetPts.length ? Math.min(...feetPts) : -0.85;
-    const shift = FEETY + 0.02 - footY;
+    // сдвиг этого кадра (см. setFrames): дрейф камеры убран, динамика сохранена
+    const shift = shifts[frames.indexOf(lm)] ?? shifts[idx] ?? 0;
 
     const V = {}; const gp = (i) => { if (!V[i]) { V[i] = P(i); V[i].y += shift; } return V[i]; };
 
@@ -208,7 +258,8 @@ export function create(canvas) {
       const ok = vis(lm, ank); footMesh[ank].visible = ok;
       if (ok) {
         const a = gp(ank), b = vis(lm, toe) ? gp(toe) : a.clone().add(new THREE.Vector3(0, -0.02, -0.12));
-        footMesh[ank].position.copy(mid(a, b)); footMesh[ank].position.y = FEETY + 0.03;
+        // стопа на своей реальной высоте — доска подстроится под неё
+        footMesh[ank].position.copy(mid(a, b));
         let d = b.clone().sub(a); d.y = 0; if (d.lengthSq() < 1e-6) d.set(0, 0, -1); d.normalize();
         footMesh[ank].quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(UP, d).normalize(), UP, d));
       }
@@ -221,16 +272,27 @@ export function create(canvas) {
       const feetMid = mid(gp(27), gp(28));
       let ankleDir = gp(28).clone().sub(gp(27)); ankleDir.y = 0;
       if (ankleDir.lengthSq() < 1e-6) ankleDir.set(0, 0, 1); ankleDir.normalize();
-      const lenAxis = new THREE.Vector3().crossVectors(UP, ankleDir).normalize();
-      board.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(lenAxis, UP, ankleDir));
-      board.position.copy(feetMid); board.position.y = FEETY;
+      // Сёрф-стойка: ноги стоят ВДОЛЬ доски (передняя ближе к носу, задняя к хвосту),
+      // поэтому длинная ось деки (локальный X) идёт по линии между стопами, а не поперёк неё.
+      const widthAxis = new THREE.Vector3().crossVectors(ankleDir, UP).normalize();
+      board.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(ankleDir, UP, widthAxis));
+      // Доска следует за стопами (под ними), а не приклеена к воде: при приседании
+      // и прыжке связка «стопы — доска» остаётся целой. Отсчёт — от фактического
+      // низа стоп-мешей (они уже расставлены выше), иначе стопа проваливается сквозь дек.
+      board.position.copy(feetMid);
+      const soleY = Math.min(
+        footMesh[27].visible ? footMesh[27].position.y : Infinity,
+        footMesh[28].visible ? footMesh[28].position.y : Infinity
+      ) - FOOT_H / 2;
+      board.position.y = soleY - BOARD_TH;
       if (hipOk) {
         const shOk = vis(lm, 11) && vis(lm, 12);
         const com = shOk ? mid(gp(23), gp(24)).multiplyScalar(0.6).add(mid(gp(11), gp(12)).multiplyScalar(0.4)) : mid(gp(23), gp(24));
         const A = gp(27), B = gp(28), ab = B.clone().sub(A);
         let t = ab.lengthSq() > 1e-6 ? com.clone().sub(A).dot(ab) / ab.lengthSq() : 0.5;
         t = Math.max(0, Math.min(1, t));
-        const foot = A.clone().add(ab.clone().multiplyScalar(t)); foot.y = FEETY + 0.03;
+        const foot = A.clone().add(ab.clone().multiplyScalar(t));
+        foot.y = board.position.y + BOARD_TH + 0.012; // диск давления — на деке
         disc.position.copy(foot);
         const dev = Math.min(1, Math.abs(t - 0.5) * 2.2);
         const col = cGreen.clone().lerp(cWarn, dev);

@@ -44,7 +44,7 @@
   <header class="topbar">
     <div class="brand"><span class="logo">🌊</span>
       <div><h1>Катер и волна</h1>
-        <p class="tagline">Где карман, лип и флэт — и почему в одном месте волна везёт, а в другом отстаёшь</p></div>
+        <p class="tagline">Крупный план волны: где карман, лип и флэт — и почему в одном месте волна везёт, а в другом отстаёшь</p></div>
     </div>
   </header>
 
@@ -58,21 +58,21 @@
 
       <div class="row">
         <label style="flex:1 1 320px">Где стоит райдер
-          <input id="pos" type="range" min="0" max="1" step="0.01" value="0.42" style="flex:1" />
+          <input id="pos" type="range" min="0" max="1" step="0.01" value="0.3" style="flex:1" />
         </label>
         <button class="btn on" id="zonesBtn">Показать зоны</button>
       </div>
 
       <div class="row">
-        <label>Балласт (высота волны) <input id="amp" type="range" min="0.3" max="0.95" step="0.01" value="0.62" /></label>
-        <label>Скорость катера (длина волны) <input id="len" type="range" min="1.4" max="3.2" step="0.05" value="2.2" /></label>
+        <label>Высота волны (балласт) <input id="amp" type="range" min="0.5" max="1.4" step="0.02" value="0.95" /></label>
+        <label>Крутизна (скорость катера) <input id="len" type="range" min="0.7" max="1.5" step="0.02" value="1" /></label>
       </div>
 
       <div class="row">
         <span class="note" style="min-width:44px">Вид:</span>
         <button class="btn" data-view="three">3/4</button>
         <button class="btn" data-view="side">Сбоку</button>
-        <button class="btn" data-view="back">Из-за катера</button>
+        <button class="btn" data-view="front">Спереди</button>
         <button class="btn" data-view="top">Сверху</button>
       </div>
 
@@ -92,15 +92,13 @@
       </div>
 
       <p class="note" style="margin-top:14px">
-        Двигайте ползунок «где стоит райдер» — индикатор справа сверху покажет, толкает ли волна.
-        Балласт делает волну выше, скорость катера — длиннее и положе: медленнее (17 км/ч) — короткая крутая волна для трюков,
-        быстрее (19–20 км/ч) — длинная и гладкая, на ней проще учиться.
+        Катера в кадре нет — он далеко впереди, стрелка показывает направление движения. Важно другое: где на волне стоит райдер. Двигайте ползунок — индикатор сверху покажет, толкает ли волна. Балласт делает волну выше, скорость катера меняет крутизну: медленнее (17 км/ч) — короткая крутая волна для трюков, быстрее (19–20 км/ч) — длинная пологая, на ней проще учиться.
       </p>
     </section>
   </main>
 
   <script type="module">
-    import { createWaveScene } from "./js/waveScene.js?v=1";
+    import { createWaveScene } from "./js/waveScene.js?v=3";
     const $ = id => document.getElementById(id);
 
     const badge = $("push");
@@ -119,7 +117,7 @@
 
     $("pos").addEventListener("input", e => scene.setPos(+e.target.value));
     $("amp").addEventListener("input", e => scene.setAmp(+e.target.value));
-    $("len").addEventListener("input", e => scene.setLen(+e.target.value));
+    $("len").addEventListener("input", e => scene.setSteep(+e.target.value));
     let zones = true;
     $("zonesBtn").addEventListener("click", () => {
       zones = !zones; scene.setZones(zones);

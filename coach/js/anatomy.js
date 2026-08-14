@@ -367,9 +367,17 @@ export function createAnatomy(opts = {}) {
   // рабочий диапазон сгиба сустава (радианы), за ним — предупреждение
   const RANGE = { elbow: [0, 2.4], knee: [0, 2.3], shoulder: [0, 2.6], hip: [0, 2.0], ankle: [-0.6, 0.7], wrist: [-1, 1] };
 
+  const jMed = new THREE.Color(0xff3b30);
   function updateJoints() {
     for (const { name, mesh, mat } of jointMeshes) {
       const anchor = parts[name];
+      // медицинский стиль: все суставы одинаково красные, как в атласах
+      if (typeof medical !== "undefined" && medical) {
+        mat.color.copy(jMed);
+        mat.emissive.copy(jMed).multiplyScalar(0.55);
+        mesh.scale.setScalar(1.1);
+        continue;
+      }
       const kind = name.replace(/[LR]$/, "");
       const rng = RANGE[kind];
       if (!rng) { mat.color.copy(jGreen); continue; }
@@ -442,9 +450,32 @@ export function createAnatomy(opts = {}) {
     }
   }
 
+  // Медицинский стиль подачи: светлое матовое тело единым материалом и
+  // красные светящиеся суставы — как в анатомических атласах и мед-рендерах.
+  const baseSuit = suit.color.clone(), baseSkin = skin.color.clone();
+  const baseSuitRough = suit.roughness, baseSkinRough = skin.roughness;
+  let medical = false;
+  function setMedical(on) {
+    medical = on;
+    if (on) {
+      suit.color.set(0xdde3e9); suit.roughness = 0.88; suit.metalness = 0.02;
+      suit.emissive.set(0x2a3644); suit.emissiveIntensity = 0.18;
+      skin.color.set(0xdde3e9); skin.roughness = 0.88; skin.metalness = 0.02;
+      skin.emissive.set(0x2a3644); skin.emissiveIntensity = 0.18;
+    } else {
+      suit.color.copy(baseSuit); suit.roughness = baseSuitRough; suit.metalness = 0.1;
+      suit.emissive.set(0x0a1119); suit.emissiveIntensity = 0.45;
+      skin.color.copy(baseSkin); skin.roughness = baseSkinRough; skin.metalness = 0.02;
+      skin.emissive.set(0x2a1d13); skin.emissiveIntensity = 0.22;
+    }
+    suit.needsUpdate = skin.needsUpdate = true;
+    updateJoints();
+  }
+  function isMedical() { return medical; }
+
   return {
     root, parts, lengths: L, height, headHeight,
-    setSegmentColors, setBulge, setJoints, updateJoints, setXray,
+    setSegmentColors, setBulge, setJoints, updateJoints, setXray, setMedical, isMedical,
     materials: { suit, skin }
   };
 }

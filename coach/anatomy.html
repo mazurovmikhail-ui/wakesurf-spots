@@ -62,6 +62,7 @@
 
       <div class="row">
         <label>Мышечность <input id="bulge" type="range" min="0.8" max="1.3" step="0.02" value="1" /><span id="bulgeVal" class="note">1.00</span></label>
+        <button class="btn" id="medBtn">Мед-вид</button>
         <button class="btn" id="jointBtn">Суставы</button>
         <button class="btn" id="xrayBtn">Просвет</button>
         <button class="btn" id="segBtn">Сегменты</button>
@@ -171,7 +172,19 @@
       model.setBulge(v);
     });
 
-    let joints = false, xray = false, seg = false, wire = false;
+    let joints = false, xray = false, seg = false, wire = false, med = false;
+    $("medBtn").addEventListener("click", () => {
+      med = !med;
+      model.setMedical(med);
+      // в мед-виде суставы включаются сами и фон становится тёмным
+      if (med && !joints) { joints = true; model.setJoints(true); $("jointBtn").classList.add("on"); }
+      floor.visible = !med;
+      document.querySelector(".stage").style.background = med
+        ? "radial-gradient(760px 520px at 50% 22%, #223447 0%, #070c14 76%)"
+        : "radial-gradient(760px 520px at 50% 20%, #16334d 0%, #0b1120 74%)";
+      $("medBtn").classList.toggle("on", med);
+    });
+
     $("jointBtn").addEventListener("click", () => {
       joints = !joints; model.setJoints(joints);
       $("jointBtn").classList.toggle("on", joints);

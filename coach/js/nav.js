@@ -10,6 +10,7 @@ const ICONS = {
   cube: ICON(`<path d="M12 2.6 3.5 7v10L12 21.4 20.5 17V7L12 2.6z"/><path d="M3.5 7 12 11.6 20.5 7M12 11.6v9.8"/>`),
   person: ICON(`<circle cx="12" cy="6" r="3.2"/><path d="M6 21v-2.5C6 15.5 8.7 13.5 12 13.5s6 2 6 5V21"/>`),
   anatomy: ICON(`<circle cx="12" cy="4.6" r="2.4"/><path d="M12 7v7.5M12 9.5 7 12M12 9.5l5 2.5M12 14.5 9 21M12 14.5 15 21"/>`),
+  wave: ICON(`<path d="M2 12.5c2.4-3.4 5-3.4 7.4 0s5 3.4 7.4 0 4.3-2.9 5.2-1"/><path d="M2 17.5c2.4-3.4 5-3.4 7.4 0s5 3.4 7.4 0 4.3-2.9 5.2-1"/>`),
   sun: ICON(`<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>`),
   moon: ICON(`<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>`)
 };
@@ -17,6 +18,7 @@ const ICONS = {
 const LINKS = [
   { href: "../", icon: "map", label: "Споты" },
   { href: "index.html", icon: "coach", label: "Тренер", match: ["", "index.html"] },
+  { href: "wave.html", icon: "wave", label: "Волна" },
   { href: "rider3d.html", icon: "cube", label: "3D-райдер" },
   { href: "avatar.html", icon: "person", label: "Реалистичный" },
   { href: "anatomy.html", icon: "anatomy", label: "Анатомия" }

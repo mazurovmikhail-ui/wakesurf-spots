@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Реалистичный райдер — WakeCoach</title>
-<link rel="stylesheet" href="css/styles.css?v=2" />
+<link rel="stylesheet" href="css/styles.css?v=3" />
 <style>
   .vr-wrap { max-width: 960px; margin: 0 auto; padding: 22px 16px 60px; }
   .stage3d { position: relative; border-radius: 16px; overflow: hidden;
@@ -33,7 +33,7 @@
   "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 }}
 </script>
-  <script src="js/nav.js?v=2" defer></script>
+  <script src="js/nav.js?v=3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -61,6 +61,7 @@
         <div class="progress-track"><div class="progress-fill" id="fill"></div></div><span id="plabel">0%</span>
       </div>
       <p class="muted" id="stage"></p>
+      <div id="stateBox" hidden></div>
     </section>
 
     <section class="panel" id="viewPanel" hidden>
@@ -94,11 +95,12 @@
 
   <script type="module">
     import { initPose, extractSequence } from "./js/pose.js";
+    import { showState, STATES } from "./js/states.js";
     import { create } from "./js/riderAvatar.js";
     const $ = (id) => document.getElementById(id);
     let viewer = null, raw = null;
 
-    (async () => { try { await initPose(); setSt("Готово ✓","ready"); } catch(e){ setSt("Нет ML-движка (нужен интернет)","error"); } })();
+    (async () => { try { await initPose(); setSt("Готово ✓","ready"); } catch(e){ setSt("Нет ML-движка","error"); showState($("stateBox"), STATES.offline(()=>location.reload())); } })();
     function setSt(t,c=""){ $("st").textContent=t; $("st").className="status "+c; }
     function prog(p,s){ $("prog").hidden=false; const pct=Math.round(p*100); $("fill").style.width=pct+"%"; $("plabel").textContent=pct+"%"; if(s)$("stage").textContent=s; }
     function syncPlayBtn(){ if (viewer) $("play").textContent = viewer.isPlaying() ? "⏸" : "▶︎"; }
@@ -114,7 +116,7 @@
       raw = await extractSequence(v, { fps, onProgress:(p)=>prog(p,"Оцифровываю движение по кадрам…") });
       v.remove();
       const good = raw.filter(f=>f.landmarks);
-      if (good.length < 4) { $("stage").textContent="⚠️ Райдер почти не распознан — нужен клип, где человек в кадре."; return; }
+      if (good.length < 4) { $("stage").textContent=""; showState($("stateBox"), STATES.noPerson(()=>$("file").click())); return; }
       prog(1, `Готово: ${good.length} кадров. Крутите модель мышкой.`);
       $("viewPanel").hidden = false;
       if (!viewer) {

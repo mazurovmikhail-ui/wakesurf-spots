@@ -399,3 +399,76 @@ td.delta-good { color: var(--good); }
 .phys-src { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
 .phys-chip { background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-family: inherit; }
 .phys-chip.on { background: rgba(56,189,248,.15); border-color: var(--accent); color: var(--accent); }
+
+/* ── Мобильная вёрстка раздела ── */
+@media (max-width: 620px) {
+  .topbar { padding: 12px 14px; gap: 10px; }
+  .logo { font-size: 26px; }
+  .topbar h1 { font-size: 13.5px; }
+  .tagline { font-size: 12px; }
+  .status { font-size: 12px; padding: 5px 10px; }
+
+  main { padding: 14px 12px 44px; gap: 14px; }
+  .panel { padding: 15px 14px; border-radius: 12px; }
+  .panel h2 { font-size: 13px; margin-bottom: 12px; flex-wrap: wrap; }
+
+  .drop { padding: 20px 12px; }
+  .drop-icon { font-size: 26px; }
+
+  /* 3D-сцены: ниже, чтобы под ними помещалось управление */
+  .stage3d, .stage { height: 58vh; min-height: 280px; }
+
+  /* перемотка: кнопки в ряд, слайдер на всю ширину под ними */
+  .scrub { gap: 8px; }
+  .scrub input[type=range] { flex: 1 1 100%; order: 3; }
+  .frame-badge { order: 2; margin-left: auto; }
+  .step-btn { padding: 9px 14px; }
+
+  /* ползунки настроек — каждый на своей строке, подпись слева */
+  .ctrls { gap: 10px; }
+  .ctrls label { width: 100%; justify-content: space-between; }
+  .ctrls label input[type=range] { flex: 1 1 auto; max-width: 60%; margin-left: 10px; }
+
+  .row { gap: 10px; margin: 12px 0; }
+  .views { gap: 6px; }
+  .btn { padding: 8px 12px; font-size: 12.5px; }
+
+  .phys-list { grid-template-columns: 1fr; }
+  .com-legend { gap: 8px; font-size: 12px; }
+  .coach-ask { flex-direction: column; align-items: stretch; }
+  .coach-ask .coach-go { width: 100%; }
+}
+
+/* ── Экраны состояний ── */
+.state {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+  padding: 26px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.state svg { width: 34px; height: 34px; color: var(--accent); }
+.state b { color: var(--text); font-size: 14.5px; }
+.state.warn { border-color: rgba(251, 191, 36, .4); }
+.state.warn svg { color: var(--warn); }
+.state.bad { border-color: rgba(248, 113, 113, .4); }
+.state.bad svg { color: var(--bad); }
+.state .state-act {
+  margin-top: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.state .state-act:hover { background: var(--accent-2); }

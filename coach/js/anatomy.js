@@ -331,6 +331,66 @@ export function createAnatomy(opts = {}) {
     parts["foot" + key] = foot;
   }
 
+  // ── Подсветка суставов: сферы в точках сочленений.
+  // Цвет — по углу сгиба: зелёный в рабочем диапазоне, жёлтый ближе к пределу,
+  // красный на переразгибе. Для тренера это читается сразу: «колено выпрямлено».
+  const jointGroup = new THREE.Group();
+  jointGroup.visible = false;
+  root.add(jointGroup);
+  parts.jointGroup = jointGroup;
+
+  const JOINTS = [
+    ["shoulderL", 0.055], ["shoulderR", 0.055],
+    ["elbowL", 0.043], ["elbowR", 0.043],
+    ["wristL", 0.033], ["wristR", 0.033],
+    ["hipL", 0.058], ["hipR", 0.058],
+    ["kneeL", 0.055], ["kneeR", 0.055],
+    ["ankleL", 0.042], ["ankleR", 0.042],
+    ["neck", 0.04],
+  ];
+  const jointMeshes = [];
+  for (const [name, r] of JOINTS) {
+    const anchor = parts[name];
+    if (!anchor) continue;
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x34d399, emissive: 0x0f5a3a, emissiveIntensity: 0.9,
+      transparent: true, opacity: 0.92, roughness: 0.35
+    });
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 16), mat);
+    s.visible = false;
+    anchor.add(s);
+    jointMeshes.push({ name, mesh: s, mat });
+    parts["joint_" + name] = s;
+  }
+
+  const jGreen = new THREE.Color(0x34d399), jWarn = new THREE.Color(0xfbbf24), jBad = new THREE.Color(0xf87171);
+  // рабочий диапазон сгиба сустава (радианы), за ним — предупреждение
+  const RANGE = { elbow: [0, 2.4], knee: [0, 2.3], shoulder: [0, 2.6], hip: [0, 2.0], ankle: [-0.6, 0.7], wrist: [-1, 1] };
+
+  function updateJoints() {
+    for (const { name, mesh, mat } of jointMeshes) {
+      const anchor = parts[name];
+      const kind = name.replace(/[LR]$/, "");
+      const rng = RANGE[kind];
+      if (!rng) { mat.color.copy(jGreen); continue; }
+      const a = Math.abs(anchor.rotation.x) + Math.abs(anchor.rotation.z) * 0.4;
+      const [lo, hi] = rng;
+      const span = hi - lo;
+      const k = Math.max(0, Math.min(1, (a - lo) / (span || 1)));
+      // ближе к краю диапазона — теплее цвет
+      const col = k < 0.65 ? jGreen.clone().lerp(jWarn, k / 0.65) : jWarn.clone().lerp(jBad, (k - 0.65) / 0.35);
+      mat.color.copy(col);
+      mat.emissive.copy(col).multiplyScalar(0.35);
+      mesh.scale.setScalar(1 + k * 0.25);
+    }
+  }
+
+  function setJoints(on) {
+    jointGroup.visible = on;
+    jointMeshes.forEach(j => { j.mesh.visible = on; });
+    if (on) updateJoints();
+  }
+
   // раскрасить сегменты для отладки
   function setSegmentColors(on) {
     const palette = [0x38bdf8, 0x34d399, 0xfbbf24, 0xf472b6, 0xa78bfa, 0xf87171];
@@ -373,7 +433,20 @@ export function createAnatomy(opts = {}) {
   const height = L.thigh + L.shin + L.torso * 0.9 + 0.055 + L.neck + headHeight * 0.55;
   root.position.y = L.thigh + L.shin; // поставить стопы в 0
 
-  return { root, parts, lengths: L, height, headHeight, setSegmentColors, setBulge, materials: { suit, skin } };
+  // «медицинский» вид: полупрозрачное тело, чтобы суставы читались сквозь него
+  function setXray(on) {
+    for (const m of [suit, skin]) {
+      m.transparent = on;
+      m.opacity = on ? 0.42 : 1;
+      m.needsUpdate = true;
+    }
+  }
+
+  return {
+    root, parts, lengths: L, height, headHeight,
+    setSegmentColors, setBulge, setJoints, updateJoints, setXray,
+    materials: { suit, skin }
+  };
 }
 
 // ── позы для стенда ──

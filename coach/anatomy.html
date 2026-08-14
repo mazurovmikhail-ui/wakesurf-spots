@@ -62,15 +62,22 @@
 
       <div class="row">
         <label>Мышечность <input id="bulge" type="range" min="0.8" max="1.3" step="0.02" value="1" /><span id="bulgeVal" class="note">1.00</span></label>
-        <button class="btn" id="segBtn">Показать сегменты</button>
+        <button class="btn" id="jointBtn">Суставы</button>
+        <button class="btn" id="xrayBtn">Просвет</button>
+        <button class="btn" id="segBtn">Сегменты</button>
         <button class="btn" id="wireBtn">Каркас</button>
         <button class="btn" id="gridBtn">Сетка роста</button>
       </div>
 
       <p class="note">
         Тело построено лофтом по сечениям: у каждого сегмента задан профиль «мяса» — дельта у плеча,
-        бицепс в середине плеча, квадрицепс на бедре, икра в верхней трети голени. Пропорции — 7.5 голов.
-        Сетка роста показывает деление по головам, чтобы проверять пропорции.
+        бицепс в середине плеча, квадрицепс на бедре, икра в верхней трети голени. Обхваты сняты замерами
+        с анатомической модели реального человека (Visible Human, CC BY 4.0), пропорции — 7.5 голов.
+      </p>
+      <p class="note">
+        <b>Суставы</b> подсвечиваются по углу сгиба: <span style="color:#34d399">зелёный</span> — рабочий диапазон,
+        <span style="color:#fbbf24">жёлтый</span> — близко к пределу, <span style="color:#f87171">красный</span> — предел.
+        <b>Просвет</b> делает тело полупрозрачным, чтобы видеть сочленения насквозь.
       </p>
       <p class="note" id="stats"></p>
     </section>
@@ -132,6 +139,7 @@
     function applyPose(name) {
       poseName = name;
       POSES[name](model.parts);
+      model.updateJoints();
       [...$("poses").children].forEach(b => b.classList.toggle("on", b.textContent === name));
       stats();
     }
@@ -163,7 +171,17 @@
       model.setBulge(v);
     });
 
-    let seg = false, wire = false;
+    let joints = false, xray = false, seg = false, wire = false;
+    $("jointBtn").addEventListener("click", () => {
+      joints = !joints; model.setJoints(joints);
+      $("jointBtn").classList.toggle("on", joints);
+    });
+    $("xrayBtn").addEventListener("click", () => {
+      xray = !xray; model.setXray(xray);
+      if (xray && !joints) { joints = true; model.setJoints(true); $("jointBtn").classList.add("on"); }
+      $("xrayBtn").classList.toggle("on", xray);
+    });
+
     $("segBtn").addEventListener("click", () => {
       seg = !seg; model.setSegmentColors(seg);
       $("segBtn").classList.toggle("on", seg);

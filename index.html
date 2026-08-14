@@ -555,6 +555,28 @@
     white-space: nowrap;
   }
   .chip.on { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--on-accent); font-weight: 600; }
+  .chip-share { border-style: dashed; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 74px;
+    transform: translateX(-50%) translateY(12px);
+    z-index: 3000;
+    background: var(--panel);
+    border: 1px solid var(--accent-dim);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-size: 13px;
+    box-shadow: 0 8px 24px var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   main { flex: 1; display: flex; min-height: 0; }
   #map { flex: 1; min-width: 0; background: var(--bg); position: relative; }
@@ -728,6 +750,7 @@
   <span class="chip" id="fBoat">катер указан</span>
   <span class="chip" id="fStay">с проживанием</span>
   <span class="chip" id="fFav">избранное</span>
+  <span class="chip chip-share" id="btnShareFav" style="display:none">поделиться списком</span>
   <span class="chip" id="btnGeo">рядом со мной</span>
   <select id="fSort">
     <option value="default">Сортировка: обычная</option>
@@ -746,6 +769,8 @@
 <div class="page-overlay" id="pageOverlay">
   <div class="page" id="pageBox"></div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <div class="cmp-bar" id="cmpBar">
   <span id="cmpText"></span>
@@ -962,20 +987,57 @@ function toggleFav(ev, i) {
   const sl = SLUGS[i];
   if (FAVS.has(sl)) FAVS.delete(sl); else FAVS.add(sl);
   try { localStorage.setItem("wakefavs", JSON.stringify([...FAVS])); } catch (e) {}
+  updateFavShare();
   render();
+}
+function updateFavShare() {
+  document.getElementById("btnShareFav").style.display = FAVS.size ? "" : "none";
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function copyLink(url, okMsg) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => toast(okMsg)).catch(() => prompt("Скопируйте ссылку:", url));
+  } else {
+    prompt("Скопируйте ссылку:", url);
+  }
 }
 
 function shareSpot(ev, i) {
   ev.stopPropagation();
   const url = location.origin + location.pathname + "#" + SLUGS[i];
   const btn = ev.target.closest("button");
-  const done = () => {
-    btn.innerHTML = ICONS.check + "скопировано";
-    setTimeout(() => { btn.innerHTML = ICONS.link + "ссылка"; }, 1500);
-  };
-  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done).catch(() => prompt("Ссылка на спот:", url));
-  else prompt("Ссылка на спот:", url);
+  const label = btn.textContent.includes("Скопировать") ? ICONS.link + "Скопировать ссылку" : ICONS.link + "ссылка";
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      btn.innerHTML = ICONS.check + "скопировано";
+      toast("Ссылка на спот скопирована");
+      setTimeout(() => { btn.innerHTML = label; }, 1600);
+    }).catch(() => prompt("Ссылка на спот:", url));
+  } else prompt("Ссылка на спот:", url);
 }
+
+// ── Экспорт избранного ссылкой ──
+function shareFavs() {
+  if (!FAVS.size) return;
+  const url = location.origin + location.pathname + "#fav=" + [...FAVS].join(",");
+  copyLink(url, `Ссылка на ${FAVS.size} ${plural(FAVS.size, "спот", "спота", "спотов")} скопирована`);
+}
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
+}
+document.getElementById("btnShareFav").addEventListener("click", shareFavs);
 
 // ── Тема: тёмная по умолчанию, уважает prefers-color-scheme, переключатель ──
 const THEME_KEY = "waketheme";
@@ -1533,12 +1595,31 @@ document.getElementById("mapLegend").innerHTML =
     .join("");
 
 initFilters();
+updateFavShare();
 render();
 
 // Прямая ссылка на спот: #slug открывает и подсвечивает карточку
 function openFromHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
   if (!h) return;
+
+  // Общий список избранного: #fav=slug1,slug2
+  if (h.startsWith("fav=")) {
+    const slugs = h.slice(4).split(",").filter(x => SLUGS.includes(x));
+    if (!slugs.length) { toast("В ссылке нет знакомых спотов"); return; }
+    slugs.forEach(s => FAVS.add(s));
+    try { localStorage.setItem("wakefavs", JSON.stringify([...FAVS])); } catch (e) {}
+    updateFavShare();
+    state.fav = true;
+    document.getElementById("fFav").classList.add("on");
+    render();
+    history.replaceState(null, "", location.pathname);
+    const idx = slugs.map(s => SLUGS.indexOf(s)).filter(i => SPOTS[i].lat != null);
+    if (idx.length) map.fitBounds(idx.map(i => [SPOTS[i].lat, SPOTS[i].lon]), { padding: [40, 40], maxZoom: 10 });
+    toast(`Добавлено в избранное: ${slugs.length} ${plural(slugs.length, "спот", "спота", "спотов")}`);
+    return;
+  }
+
   const i = SLUGS.indexOf(h);
   if (i < 0) return;
   const s = SPOTS[i];

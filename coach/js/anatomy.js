@@ -12,7 +12,7 @@ import * as THREE from "three";
 export const H = 1.75;
 
 // Отметка сборки — видно на стенде, чтобы отличать свежую версию от кеша браузера.
-export const VERSION = "7";
+export const VERSION = "9";
 
 // Профиль сегмента: [t вдоль длины 0..1, полуширина, полуглубина] в метрах.
 // Числа сняты замерами с анатомической модели реального человека
@@ -23,7 +23,7 @@ const P = {
   upperArm: [[0, 0.064, 0.06], [0.18, 0.06, 0.056], [0.45, 0.051, 0.048], [0.8, 0.045, 0.042], [1, 0.042, 0.039]],
   foreArm: [[0, 0.048, 0.046], [0.25, 0.05, 0.047], [0.6, 0.04, 0.037], [1, 0.029, 0.026]],
   thigh: [[0, 0.1, 0.104], [0.25, 0.094, 0.096], [0.6, 0.082, 0.084], [1, 0.072, 0.074]],
-  shin: [[0, 0.072, 0.074], [0.22, 0.068, 0.07], [0.45, 0.058, 0.062], [0.78, 0.042, 0.05], [1, 0.037, 0.046]],
+  shin: [[0, 0.075, 0.077], [0.22, 0.073, 0.076], [0.45, 0.063, 0.067], [0.78, 0.045, 0.052], [1, 0.039, 0.047]],
   neck: [[0, 0.058, 0.055], [1, 0.052, 0.049]],
 };
 
@@ -146,7 +146,7 @@ function headGeometry(size) {
     v.fromBufferAttribute(p, i);
     const up = v.y / size;                       // -1 низ .. 1 верх
     const front = v.z / size;
-    let sx = 0.86, sy = 1.14, sz = 0.98;
+    let sx = 0.88, sy = 1.04, sz = 1.0;   // череп, а не вытянутый купол
     if (up < 0) { sx *= 1 + up * 0.22; sz *= 1 + up * 0.12; } // сужение к подбородку
     if (up > 0.35) sz *= 1 - (up - 0.35) * 0.18;              // затылок круглее лба
     v.set(v.x * sx, v.y * sy, v.z * sz);
@@ -213,15 +213,15 @@ export function createAnatomy(opts = {}) {
 
   // длины сегментов (метры), рост ≈ 1.75
   const L = {
-    torso: 0.50, neck: 0.10, head: 0.096,
-    upperArm: 0.30, foreArm: 0.255, hand: 0.185,
-    thigh: 0.445, shin: 0.415, foot: 0.245,
+    torso: 0.50, neck: 0.105, head: 0.10,
+    upperArm: 0.315, foreArm: 0.27, hand: 0.185,
+    thigh: 0.445, shin: 0.415, foot: 0.205,
   };
   // Сегмент строго до сустава: удлинение приводило к тому, что тонкий конец
   // бедра протыкал голень и наружу торчала его изнанка. Стыки закрывают
   // суставные объёмы, они заведомо толще концов соседних сегментов.
   const OVER = 1.0;
-  const shoulderHalf = 0.196, hipHalf = 0.088; // плечи ≈ 24% роста (мужской канон)
+  const shoulderHalf = 0.192, hipHalf = 0.088; // с учётом дельт даёт ≈ 23–24% роста
 
   const root = new THREE.Group();          // origin = таз
   const parts = {};
@@ -261,21 +261,22 @@ export function createAnatomy(opts = {}) {
   chestAnchor.position.y = L.torso * 0.9;   // на уровне ключиц, не над макушкой торса
   root.add(chestAnchor); parts.chestAnchor = chestAnchor;
 
-  // трапеции — плавный переход плечи → шея
-  const traps = new THREE.Mesh(loft([[0, 0.135, 0.09], [1, 0.07, 0.06]], 0.07, { rings: 8, radial: 16 }), suit);
-  traps.position.y = 0.07;
+  // Трапеции — плавный переход плечи → шея. Держим их низко, иначе они
+  // «съедают» шею и голова садится прямо на плечи.
+  const traps = new THREE.Mesh(loft([[0, 0.14, 0.095], [1, 0.075, 0.065]], 0.06, { rings: 8, radial: 16 }), suit);
+  traps.position.y = 0.045;
   chestAnchor.add(traps);
 
   // шея (растёт вверх от груди) и голова на ней
   const neckGrp = new THREE.Group();
-  neckGrp.position.y = 0.055;
+  neckGrp.position.y = 0.035;
   chestAnchor.add(neckGrp); parts.neck = neckGrp;
-  // шея длиннее, чем видна: заходит в плечи и в череп, стыки не разъезжаются
-  const neckMesh = new THREE.Mesh(loft(P.neck, L.neck * 1.5, { rings: 8, radial: 14, bulge }), skin);
-  neckMesh.position.y = L.neck * 1.2;
+  // шея нарисована с запасом вниз — уходит под трапеции, стык не разъезжается
+  const neckMesh = new THREE.Mesh(loft(P.neck, L.neck * 1.6, { rings: 8, radial: 14, bulge }), skin);
+  neckMesh.position.y = L.neck * 1.25;
   neckGrp.add(neckMesh);
   const headGrp = new THREE.Group();
-  headGrp.position.y = L.neck + L.head * 0.95;
+  headGrp.position.y = L.neck * 1.25 + L.head * 0.9;
   neckGrp.add(headGrp); parts.head = headGrp;
   headGrp.add(new THREE.Mesh(headGeometry(L.head), skin));
 
@@ -288,10 +289,10 @@ export function createAnatomy(opts = {}) {
     chestAnchor.add(shoulder);
     parts["shoulder" + key] = shoulder;
 
-    // дельта: каплевидная, спускается на плечо, а не шар в суставе
-    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.062 * bulge, 20, 16), suit);
-    delta.scale.set(1.0, 1.25, 0.92);
-    delta.position.y = -0.022;
+    // дельта: спускается на плечо вниз, а не торчит вверх наплечником
+    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.05 * bulge, 20, 16), suit);
+    delta.scale.set(0.95, 1.35, 0.9);
+    delta.position.y = -0.038;
     shoulder.add(delta);
 
     const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm * OVER, { bulge }), suit);
@@ -472,7 +473,7 @@ export function createAnatomy(opts = {}) {
   }
 
   // высота фигуры от стопы до макушки; голова в геометрии = 2.28 радиуса
-  const headHeight = L.head * 2.28;
+  const headHeight = L.head * 2.08;
   const height = L.thigh + L.shin + L.torso * 0.9 + 0.055 + L.neck + headHeight * 0.55;
   root.position.y = L.thigh + L.shin; // поставить стопы в 0
 

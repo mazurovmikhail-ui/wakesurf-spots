@@ -207,6 +207,32 @@ export function createAnatomy(opts = {}) {
   const torso = new THREE.Mesh(torsoGeometry(L.torso, bulge), suit);
   root.add(torso); parts.torso = torso;
 
+  // Мышечный рельеф корпуса: грудные, широчайшие, ягодицы. Отдельные объёмы
+  // поверх торса — силуэт перестаёт быть гладкой бочкой.
+  const relief = new THREE.Group();
+  root.add(relief); parts.relief = relief;
+  for (const side of [-1, 1]) {
+    const pec = new THREE.Mesh(new THREE.SphereGeometry(0.072 * bulge, 18, 14), suit);
+    pec.scale.set(1.05, 0.62, 0.5);
+    pec.position.set(side * 0.062, L.torso * 0.79, 0.075);
+    relief.add(pec);
+
+    const lat = new THREE.Mesh(new THREE.SphereGeometry(0.078 * bulge, 16, 12), suit);
+    lat.scale.set(0.55, 1.05, 0.62);
+    lat.position.set(side * 0.135, L.torso * 0.66, -0.012);
+    relief.add(lat);
+
+    const glute = new THREE.Mesh(new THREE.SphereGeometry(0.078 * bulge, 16, 14), suit);
+    glute.scale.set(0.95, 0.85, 0.7);
+    glute.position.set(side * 0.062, 0.028, -0.062);
+    relief.add(glute);
+  }
+  // пресс/косые — лёгкий объём спереди
+  const abs = new THREE.Mesh(new THREE.SphereGeometry(0.085 * bulge, 18, 14), suit);
+  abs.scale.set(0.95, 1.25, 0.42);
+  abs.position.set(0, L.torso * 0.42, 0.055);
+  relief.add(abs);
+
   // грудь: точка крепления рук, шеи и головы
   const chestAnchor = new THREE.Group();
   chestAnchor.position.y = L.torso * 0.9;   // на уровне ключиц, не над макушкой торса
@@ -238,8 +264,10 @@ export function createAnatomy(opts = {}) {
     chestAnchor.add(shoulder);
     parts["shoulder" + key] = shoulder;
 
-    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.058 * bulge, 18, 14), suit);
-    delta.scale.set(1.05, 1, 0.95);
+    // дельта: каплевидная, спускается на плечо, а не шар в суставе
+    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.062 * bulge, 20, 16), suit);
+    delta.scale.set(1.0, 1.25, 0.92);
+    delta.position.y = -0.022;
     shoulder.add(delta);
 
     const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm, { bulge }), suit);
@@ -313,6 +341,11 @@ export function createAnatomy(opts = {}) {
   }
 
   function setBulge(b) {
+    // мышечный рельеф масштабируется целиком
+    relief.children.forEach(m => {
+      if (!m.userData.baseScale) m.userData.baseScale = m.scale.clone();
+      m.scale.copy(m.userData.baseScale).multiplyScalar(0.55 + 0.45 * b);
+    });
     // перестроить геометрию мышц под новую «мышечность»
     parts.torso.geometry.dispose();
     parts.torso.geometry = torsoGeometry(L.torso, b);

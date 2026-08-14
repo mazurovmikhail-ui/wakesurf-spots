@@ -133,7 +133,7 @@ function renderPhysics() {
         <p class="phys-myth">✗ Миф: ${p.myth}</p>
         <p class="phys-why"><b>Физика:</b> ${p.why}</p>
         <p class="phys-fix"><b>→ Что делать:</b> ${p.fix}</p>
-        <p class="phys-src">${p.src}</p>`));
+        <p class="phys-src">${p.src} · <a href="rider3d.html">разобрать по кадрам в 3D →</a></p>`));
     });
   }
 

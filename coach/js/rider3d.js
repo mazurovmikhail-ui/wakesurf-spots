@@ -258,6 +258,18 @@ export function create(canvas) {
     toggle() { playing = !playing; lastT = 0; return playing; },
     setSpeed(f) { fps = f; },
     onFrame(cb) { onFrame = cb; },
+    // покадровый разбор
+    frameCount() { return frames.length; },
+    frameIndex() { return idx; },
+    isPlaying() { return playing; },
+    seek(i) {
+      if (!frames.length) return;
+      idx = Math.max(0, Math.min(frames.length - 1, i | 0));
+      playing = false;
+      draw(frames[idx]);
+      onFrame && onFrame(idx, frames.length);
+    },
+    step(d) { this.seek(idx + d); },
     resetView() { cam.position.set(1.6, 0.5, 2.9); controls.target.set(0, 0.1, 0); controls.update(); },
     renderOnce() { controls.update(); renderer.render(scene, cam); },
     scene, figure,

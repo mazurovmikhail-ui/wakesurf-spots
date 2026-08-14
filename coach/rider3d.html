@@ -16,6 +16,14 @@
     background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); padding: 3px 10px; border-radius: 999px; }
   .ctrls { display: flex; gap: 14px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
   .ctrls label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .scrub { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; flex-wrap: wrap; }
+  .scrub input[type=range] { flex: 1 1 220px; min-width: 160px; accent-color: var(--accent); }
+  .step-btn { background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 7px 12px; cursor: pointer; font-family: inherit; font-size: 14px; line-height: 1; }
+  .step-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .frame-badge { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .com-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+  .com-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 </style>
 <script type="importmap">
 {"imports":{
@@ -55,15 +63,29 @@
 
     <section class="panel" id="viewPanel" hidden>
       <div class="stage3d"><span class="hint3d">крути мышкой · колесо — зум</span><canvas id="cv"></canvas></div>
+
+      <div class="scrub">
+        <button class="step-btn" id="stepBack" title="Кадр назад (←)">◀</button>
+        <button class="step-btn" id="play">⏸</button>
+        <button class="step-btn" id="stepFwd" title="Кадр вперёд (→)">▶</button>
+        <input type="range" id="scrubber" min="0" max="0" value="0" />
+        <span class="frame-badge" id="frameInfo"></span>
+      </div>
+
       <div class="ctrls">
-        <button id="play" class="ghost">⏸ Пауза</button>
         <button id="reset" class="ghost">⟲ Вид</button>
         <label>Скорость <input id="speed" type="range" min="3" max="24" value="12" /></label>
         <label>Сглаживание <input id="smooth" type="range" min="1" max="11" step="2" value="5" /></label>
         <label>Глубина 3D <input id="depth" type="range" min="0" max="1" step="0.05" value="0.35" /></label>
-        <span class="muted" id="frameInfo"></span>
       </div>
-      <p class="muted">3D-поза строится по данным движения (worldLandmarks MediaPipe). Доска — схематична; снаряжение точно не отслеживается (как и у аналогов). Крути фигуру мышкой, смотри технику с любого угла.</p>
+
+      <div class="com-legend">
+        <span><i style="background:#34d399"></i>вес по центру доски — устойчиво</span>
+        <span><i style="background:#fbbf24"></i>вес ушёл к носу или хвосту</span>
+        <span>Диск под ногами — точка приложения веса, луч — линия от таза к ней.</span>
+      </div>
+
+      <p class="muted">3D-поза строится по данным движения (MediaPipe). Доска схематична; снаряжение не отслеживается. Крутите фигуру мышкой, разбирайте технику по кадрам стрелками ← → и смотрите, куда уходит вес в каждой фазе.</p>
     </section>
   </main>
 
@@ -93,17 +115,36 @@
       if (!viewer) {
         viewer = create($("cv"));
         window.__v = viewer;
-        viewer.onFrame((i,n)=> $("frameInfo").textContent = `кадр ${i+1}/${n}`);
+        viewer.onFrame((i,n)=>{
+          $("frameInfo").textContent = `кадр ${i+1} / ${n}`;
+          const sc = $("scrubber");
+          sc.max = n - 1; sc.value = i;
+        });
       }
       viewer.setFrames(raw, +$("smooth").value);
+      $("scrubber").max = Math.max(0, viewer.frameCount() - 1);
+      $("scrubber").value = 0;
       viewer.setSpeed(+$("speed").value); viewer.play();
-      $("play").textContent="⏸ Пауза";
+      $("play").textContent="⏸";
     }
+
+    function syncPlayBtn() { if (viewer) $("play").textContent = viewer.isPlaying() ? "⏸" : "▶︎"; }
+    setInterval(syncPlayBtn, 400);
 
     $("drop").addEventListener("click",()=>$("file").click());
     $("file").addEventListener("change",()=>{ if($("file").files[0]) digitize(URL.createObjectURL($("file").files[0])); });
     $("demoBtn").addEventListener("click",()=> digitize("assets/sample_5382566.mp4"));
-    $("play").addEventListener("click",()=>{ if(viewer){ const p=viewer.toggle(); $("play").textContent=p?"⏸ Пауза":"▶︎ Играть"; }});
+    $("play").addEventListener("click",()=>{ if(viewer){ viewer.toggle(); syncPlayBtn(); }});
+    $("stepBack").addEventListener("click",()=>{ if(viewer){ viewer.step(-1); syncPlayBtn(); }});
+    $("stepFwd").addEventListener("click",()=>{ if(viewer){ viewer.step(1); syncPlayBtn(); }});
+    $("scrubber").addEventListener("input",e=>{ if(viewer){ viewer.seek(+e.target.value); syncPlayBtn(); }});
+    document.addEventListener("keydown", e => {
+      if (!viewer || !viewer.frameCount()) return;
+      if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
+      if (e.key === "ArrowLeft") { viewer.step(-1); syncPlayBtn(); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { viewer.step(1); syncPlayBtn(); e.preventDefault(); }
+      else if (e.key === " ") { viewer.toggle(); syncPlayBtn(); e.preventDefault(); }
+    });
     $("reset").addEventListener("click",()=> viewer && viewer.resetView());
     $("speed").addEventListener("input",e=> viewer && viewer.setSpeed(+e.target.value));
     $("smooth").addEventListener("input",e=>{ if(viewer&&raw){ viewer.setFrames(raw, +e.target.value); viewer.setDepth(+$("depth").value); } });

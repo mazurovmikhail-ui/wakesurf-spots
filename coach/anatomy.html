@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Анатомическая модель — стенд</title>
+<link rel="stylesheet" href="css/styles.css" />
+<style>
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
+  .stage { position: relative; border-radius: 16px; overflow: hidden;
+    background: radial-gradient(760px 520px at 50% 20%, #16334d 0%, #0b1120 74%);
+    border: 1px solid var(--line); height: 560px; }
+  .stage canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  .stage canvas:active { cursor: grabbing; }
+  .hint { position: absolute; left: 12px; top: 12px; font-size: 11px; color: var(--accent);
+    background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); padding: 3px 10px; border-radius: 999px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+  .row label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .btn { background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 7px 13px; cursor: pointer; font-family: inherit; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.on { background: rgba(56,189,248,.16); border-color: var(--accent); color: var(--accent); }
+  input[type=range] { accent-color: var(--accent); }
+  .note { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .views { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">🧍</span>
+      <div><h1>Анатомическая модель</h1>
+        <p class="tagline">Стенд для доводки: пропорции, мышечные объёмы, позы</p></div>
+    </div>
+    <a href="." style="color:#38bdf8;text-decoration:none;border:1px solid #263353;border-radius:10px;padding:6px 12px;font-size:13px;white-space:nowrap;">← WakeCoach</a>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <div class="stage"><span class="hint">крути мышкой · колесо — зум</span><canvas id="cv"></canvas></div>
+
+      <div class="row">
+        <span class="note" style="min-width:52px">Поза:</span>
+        <div class="views" id="poses"></div>
+      </div>
+
+      <div class="row">
+        <span class="note" style="min-width:52px">Вид:</span>
+        <div class="views">
+          <button class="btn" data-view="front">Спереди</button>
+          <button class="btn" data-view="side">Сбоку</button>
+          <button class="btn" data-view="back">Сзади</button>
+          <button class="btn" data-view="three">3/4</button>
+          <button class="btn" data-view="top">Сверху</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Мышечность <input id="bulge" type="range" min="0.8" max="1.3" step="0.02" value="1" /><span id="bulgeVal" class="note">1.00</span></label>
+        <button class="btn" id="segBtn">Показать сегменты</button>
+        <button class="btn" id="wireBtn">Каркас</button>
+        <button class="btn" id="gridBtn">Сетка роста</button>
+      </div>
+
+      <p class="note">
+        Тело построено лофтом по сечениям: у каждого сегмента задан профиль «мяса» — дельта у плеча,
+        бицепс в середине плеча, квадрицепс на бедре, икра в верхней трети голени. Пропорции — 7.5 голов.
+        Сетка роста показывает деление по головам, чтобы проверять пропорции.
+      </p>
+      <p class="note" id="stats"></p>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { createAnatomy, POSES } from "./js/anatomy.js";
+
+    const $ = id => document.getElementById(id);
+    const canvas = $("cv");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(38, 16 / 10, 0.05, 100);
+    const controls = new OrbitControls(cam, canvas);
+    controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+    scene.add(new THREE.HemisphereLight(0xdcefff, 0x0b1120, 1.15));
+    const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(2.5, 3.5, 2.5); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x9fd8ff, 1.1); rim.position.set(-2.5, 1.5, -2); scene.add(rim);
+
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(2.2, 48),
+      new THREE.MeshStandardMaterial({ color: 0x0e2233, roughness: 0.9, metalness: 0.05 }));
+    floor.rotation.x = -Math.PI / 2; scene.add(floor);
+
+    const model = createAnatomy({ bulge: 1 });
+    scene.add(model.root);
+    window.__m = model;
+
+    // сетка роста: линии по головам
+    const headUnit = model.height / 7.5;
+    const gridGroup = new THREE.Group(); gridGroup.visible = false; scene.add(gridGroup);
+    for (let i = 0; i <= 8; i++) {
+      const y = i * headUnit;
+      const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.6, y, 0), new THREE.Vector3(0.6, y, 0)]);
+      gridGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: i % 2 ? 0x1d4d6b : 0x2b6f96 })));
+    }
+
+    const VIEWS = {
+      front: [0, model.height * 0.55, 2.7],
+      side: [2.7, model.height * 0.55, 0.02],
+      back: [0, model.height * 0.55, -2.7],
+      three: [1.9, model.height * 0.62, 2.0],
+      top: [0.02, 3.1, 0.02],
+    };
+    function setView(v) {
+      const p = VIEWS[v] || VIEWS.three;
+      cam.position.set(...p);
+      controls.target.set(0, model.height * 0.48, 0);
+      controls.update();
+    }
+    setView("three");
+
+    // позы
+    let poseName = "Сёрф-стойка";
+    function applyPose(name) {
+      poseName = name;
+      POSES[name](model.parts);
+      [...$("poses").children].forEach(b => b.classList.toggle("on", b.textContent === name));
+      stats();
+    }
+    Object.keys(POSES).forEach(name => {
+      const b = document.createElement("button");
+      b.className = "btn"; b.textContent = name;
+      b.addEventListener("click", () => applyPose(name));
+      $("poses").appendChild(b);
+    });
+    applyPose(poseName);
+
+    function stats() {
+      const box = new THREE.Box3().setFromObject(model.root);
+      const size = box.getSize(new THREE.Vector3());
+      $("stats").textContent =
+        `Рост модели: ${model.height.toFixed(2)} м · голов в росте: ${(model.height / (model.lengths.head * 1.9)).toFixed(1)} · ` +
+        `габарит в позе «${poseName}»: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} м`;
+    }
+
+    document.querySelectorAll("[data-view]").forEach(b =>
+      b.addEventListener("click", () => setView(b.dataset.view)));
+
+    $("bulge").addEventListener("input", e => {
+      const v = +e.target.value;
+      $("bulgeVal").textContent = v.toFixed(2);
+      model.setBulge(v);
+    });
+
+    let seg = false, wire = false;
+    $("segBtn").addEventListener("click", () => {
+      seg = !seg; model.setSegmentColors(seg);
+      $("segBtn").classList.toggle("on", seg);
+    });
+    $("wireBtn").addEventListener("click", () => {
+      wire = !wire;
+      model.root.traverse(o => { if (o.isMesh) o.material.wireframe = wire; });
+      $("wireBtn").classList.toggle("on", wire);
+    });
+    $("gridBtn").addEventListener("click", () => {
+      gridGroup.visible = !gridGroup.visible;
+      $("gridBtn").classList.toggle("on", gridGroup.visible);
+    });
+
+    function resize() {
+      const w = canvas.clientWidth || 800, h = canvas.clientHeight || 500;
+      renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+    }
+    resize(); window.addEventListener("resize", resize);
+    (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, cam); })();
+
+    // снимок для проверки без окна
+    window.__shot = (view) => {
+      if (view) setView(view);
+      controls.update(); renderer.render(scene, cam);
+      return canvas.toDataURL("image/png");
+    };
+  </script>
+</body>
+</html>

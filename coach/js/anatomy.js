@@ -74,13 +74,12 @@ function loft(prof, len, opts = {}) {
     const a = i * NC + j, b = i * NC + (j + 1) % NC, c = (i + 1) * NC + j, d = (i + 1) * NC + (j + 1) % NC;
     idx.push(a, c, b, b, c, d);
   }
-  // шапочки: полусферы на концах, чтобы суставы были круглыми
+  // Крышки на концах — плоские, вровень с сечением. Раньше они выступали
+  // наружу и торчали из соседнего сегмента синими «клиньями».
   for (const [ring, dir] of [[0, 1], [NL - 1, -1]]) {
     const t = ring / (NL - 1);
-    const [w, d] = lerpProfile(prof, t);
-    const cy = -t * len + dir * Math.min(w, d) * 0.85;
     const c = verts.length / 3;
-    verts.push(0, cy, 0);
+    verts.push(0, -t * len, 0);
     for (let j = 0; j < NC; j++) {
       const a = ring * NC + j, b = ring * NC + (j + 1) % NC;
       if (dir > 0) idx.push(c, a, b); else idx.push(c, b, a);
@@ -173,17 +172,26 @@ function handGroup(mat, len) {
 // стопа: вытянутый клин со сводом, пятка сзади, носок ниже — без «мячей»
 function footGroup(mat, len) {
   const grp = new THREE.Group();
+  // подъём стопы — заходит вверх к щиколотке, чтобы не было зазора
+  const instep = new THREE.Mesh(
+    loft([[0, 0.043, 0.042], [1, 0.04, 0.05]], 0.075, { rings: 6, radial: 14 }),
+    mat
+  );
+  instep.position.y = 0.045;
+  grp.add(instep);
+
   const sole = new THREE.Mesh(
-    loft([[0, 0.039, 0.032], [0.3, 0.044, 0.028], [0.7, 0.042, 0.021], [1, 0.031, 0.014]], len, { rings: 14, radial: 16, squash: 0.72 }),
+    loft([[0, 0.041, 0.034], [0.3, 0.045, 0.03], [0.7, 0.042, 0.022], [1, 0.031, 0.015]], len, { rings: 14, radial: 16, squash: 0.72 }),
     mat
   );
   // положить горизонтально: длина идёт вперёд (+Z), носок чуть приподнят
   sole.rotation.x = Math.PI / 2 - 0.08;
-  sole.position.z = 0.03;
+  sole.position.set(0, -0.012, 0.028);
   grp.add(sole);
-  const heel = new THREE.Mesh(loft([[0, 0.035, 0.03], [1, 0.028, 0.026]], 0.055, { rings: 6, radial: 12 }), mat);
-  heel.position.set(0, -0.012, -0.035);
-  heel.rotation.x = -0.25;
+
+  const heel = new THREE.Mesh(loft([[0, 0.037, 0.032], [1, 0.03, 0.028]], 0.06, { rings: 6, radial: 12 }), mat);
+  heel.position.set(0, -0.005, -0.032);
+  heel.rotation.x = -0.3;
   grp.add(heel);
   return grp;
 }
@@ -200,10 +208,13 @@ export function createAnatomy(opts = {}) {
 
   // длины сегментов (метры), рост ≈ 1.75
   const L = {
-    torso: 0.50, neck: 0.085, head: 0.098,
+    torso: 0.50, neck: 0.10, head: 0.096,
     upperArm: 0.30, foreArm: 0.255, hand: 0.185,
     thigh: 0.445, shin: 0.415, foot: 0.245,
   };
+  // Сегменты рисуем длиннее сустава, чтобы они заходили друг в друга и
+  // тело не рассыпалось на отдельные детали при сгибе.
+  const OVER = 1.13;
   const shoulderHalf = 0.196, hipHalf = 0.088; // плечи ≈ 24% роста (мужской канон)
 
   const root = new THREE.Group();          // origin = таз
@@ -253,11 +264,12 @@ export function createAnatomy(opts = {}) {
   const neckGrp = new THREE.Group();
   neckGrp.position.y = 0.055;
   chestAnchor.add(neckGrp); parts.neck = neckGrp;
-  const neckMesh = new THREE.Mesh(loft(P.neck, L.neck, { rings: 8, radial: 14, bulge }), skin);
-  neckMesh.position.y = L.neck;             // origin лофта сверху → поднимаем на длину
+  // шея длиннее, чем видна: заходит в плечи и в череп, стыки не разъезжаются
+  const neckMesh = new THREE.Mesh(loft(P.neck, L.neck * 1.5, { rings: 8, radial: 14, bulge }), skin);
+  neckMesh.position.y = L.neck * 1.2;
   neckGrp.add(neckMesh);
   const headGrp = new THREE.Group();
-  headGrp.position.y = L.neck + L.head * 0.82;
+  headGrp.position.y = L.neck + L.head * 0.95;
   neckGrp.add(headGrp); parts.head = headGrp;
   headGrp.add(new THREE.Mesh(headGeometry(L.head), skin));
 
@@ -276,7 +288,7 @@ export function createAnatomy(opts = {}) {
     delta.position.y = -0.022;
     shoulder.add(delta);
 
-    const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm, { bulge }), suit);
+    const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm * OVER, { bulge }), suit);
     shoulder.add(upper);
     parts["upperArm" + key] = upper;
 
@@ -285,7 +297,12 @@ export function createAnatomy(opts = {}) {
     shoulder.add(elbow);
     parts["elbow" + key] = elbow;
 
-    const fore = new THREE.Mesh(loft(P.foreArm, L.foreArm, { bulge }), suit);
+    // шар сустава закрывает стык сегментов при любом угле сгиба
+    const elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.047 * bulge, 16, 12), suit);
+    elbowBall.scale.z = 0.92;
+    elbow.add(elbowBall);
+
+    const fore = new THREE.Mesh(loft(P.foreArm, L.foreArm * OVER, { bulge }), suit);
     elbow.add(fore);
     parts["foreArm" + key] = fore;
 
@@ -308,7 +325,12 @@ export function createAnatomy(opts = {}) {
     root.add(hip);
     parts["hip" + key] = hip;
 
-    const thigh = new THREE.Mesh(loft(P.thigh, L.thigh, { bulge }), suit);
+    // ягодичный/тазобедренный объём закрывает стык бедра с корпусом
+    const hipBall = new THREE.Mesh(new THREE.SphereGeometry(0.088 * bulge, 18, 14), suit);
+    hipBall.scale.set(1, 0.95, 0.95);
+    hip.add(hipBall);
+
+    const thigh = new THREE.Mesh(loft(P.thigh, L.thigh * OVER, { bulge }), suit);
     hip.add(thigh);
     parts["thigh" + key] = thigh;
 
@@ -317,7 +339,11 @@ export function createAnatomy(opts = {}) {
     hip.add(knee);
     parts["knee" + key] = knee;
 
-    const shin = new THREE.Mesh(loft(P.shin, L.shin, { bulge }), suit);
+    const kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.062 * bulge, 18, 14), suit);
+    kneeBall.scale.set(1, 0.92, 0.98);
+    knee.add(kneeBall);
+
+    const shin = new THREE.Mesh(loft(P.shin, L.shin * OVER, { bulge }), suit);
     knee.add(shin);
     parts["shin" + key] = shin;
 
@@ -325,6 +351,9 @@ export function createAnatomy(opts = {}) {
     ankle.position.y = -L.shin;
     knee.add(ankle);
     parts["ankle" + key] = ankle;
+
+    const ankleBall = new THREE.Mesh(new THREE.SphereGeometry(0.042 * bulge, 14, 12), suit);
+    ankle.add(ankleBall);
 
     const foot = footGroup(skin, L.foot);
     ankle.add(foot);
@@ -429,10 +458,10 @@ export function createAnatomy(opts = {}) {
         m.geometry.dispose();
         m.geometry = loft(prof, len, { bulge: b });
       };
-      rebuild("upperArm", P.upperArm, L.upperArm);
-      rebuild("foreArm", P.foreArm, L.foreArm);
-      rebuild("thigh", P.thigh, L.thigh);
-      rebuild("shin", P.shin, L.shin);
+      rebuild("upperArm", P.upperArm, L.upperArm * OVER);
+      rebuild("foreArm", P.foreArm, L.foreArm * OVER);
+      rebuild("thigh", P.thigh, L.thigh * OVER);
+      rebuild("shin", P.shin, L.shin * OVER);
     }
   }
 

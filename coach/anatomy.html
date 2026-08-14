@@ -146,9 +146,12 @@
     function stats() {
       const box = new THREE.Box3().setFromObject(model.root);
       const size = box.getSize(new THREE.Vector3());
+      const shW = Math.abs(model.parts.shoulderR.getWorldPosition(new THREE.Vector3()).x
+                         - model.parts.shoulderL.getWorldPosition(new THREE.Vector3()).x);
       $("stats").textContent =
-        `Рост модели: ${model.height.toFixed(2)} м · голов в росте: ${(model.height / (model.lengths.head * 1.9)).toFixed(1)} · ` +
-        `габарит в позе «${poseName}»: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} м`;
+        `Рост: ${size.y.toFixed(2)} м · голов в росте: ${(size.y / model.headHeight).toFixed(1)} (канон 7.5) · ` +
+        `плечи: ${shW.toFixed(2)} м = ${(shW / size.y * 100).toFixed(0)}% роста (канон 23–25%) · ` +
+        `габарит «${poseName}»: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} м`;
     }
 
     document.querySelectorAll("[data-view]").forEach(b =>

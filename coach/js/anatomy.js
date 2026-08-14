@@ -20,14 +20,16 @@ const P = {
   neck: [[0, 0.055, 0.052], [1, 0.049, 0.046]],
 };
 
-// торс: сечения снизу вверх [t, полуширина, полуглубина]
+// торс: сечения снизу вверх [t, полуширина, полуглубина].
+// Верх сужается к шее (трапеции), иначе торс выглядит бочкой с плоской крышкой.
 const TORSO = [
-  [0, 0.155, 0.105],   // таз
-  [0.2, 0.142, 0.098], // низ живота
-  [0.42, 0.133, 0.093],// талия
-  [0.62, 0.152, 0.104],// нижние рёбра
-  [0.84, 0.178, 0.115],// грудь
-  [1, 0.168, 0.106],   // ключицы
+  [0, 0.142, 0.098],   // таз
+  [0.18, 0.132, 0.093],// низ живота
+  [0.4, 0.122, 0.086], // талия
+  [0.6, 0.142, 0.098], // нижние рёбра
+  [0.8, 0.163, 0.109], // грудь
+  [0.9, 0.15, 0.1],    // ключицы
+  [1, 0.075, 0.062],   // основание шеи
 ];
 
 function lerpProfile(prof, t) {
@@ -162,15 +164,20 @@ function handGroup(mat, len) {
   return grp;
 }
 
-// стопа: клин со сводом и пяткой
+// стопа: вытянутый клин со сводом, пятка сзади, носок ниже — без «мячей»
 function footGroup(mat, len) {
   const grp = new THREE.Group();
-  const sole = new THREE.Mesh(loft([[0, 0.042, 0.03], [0.35, 0.045, 0.026], [0.75, 0.041, 0.02], [1, 0.03, 0.014]], len, { rings: 12, radial: 14 }), mat);
-  sole.rotation.x = Math.PI / 2 - 0.06;   // положить горизонтально, носок чуть вверх
+  const sole = new THREE.Mesh(
+    loft([[0, 0.039, 0.032], [0.3, 0.044, 0.028], [0.7, 0.042, 0.021], [1, 0.031, 0.014]], len, { rings: 14, radial: 16, squash: 0.72 }),
+    mat
+  );
+  // положить горизонтально: длина идёт вперёд (+Z), носок чуть приподнят
+  sole.rotation.x = Math.PI / 2 - 0.08;
+  sole.position.z = 0.03;
   grp.add(sole);
-  const heel = new THREE.Mesh(new THREE.SphereGeometry(0.036, 14, 12), mat);
-  heel.scale.set(1, 0.85, 0.9);
-  heel.position.set(0, -0.012, -0.012);
+  const heel = new THREE.Mesh(loft([[0, 0.035, 0.03], [1, 0.028, 0.026]], 0.055, { rings: 6, radial: 12 }), mat);
+  heel.position.set(0, -0.012, -0.035);
+  heel.rotation.x = -0.25;
   grp.add(heel);
   return grp;
 }
@@ -185,13 +192,13 @@ export function createAnatomy(opts = {}) {
   const suit = new THREE.MeshStandardMaterial({ color: 0x232f3d, roughness: 0.52, metalness: 0.1, emissive: 0x0a1119, emissiveIntensity: 0.45 });
   const skin = new THREE.MeshStandardMaterial({ color: 0xd7b596, roughness: 0.72, metalness: 0.02, emissive: 0x2a1d13, emissiveIntensity: 0.22 });
 
-  // длины сегментов (метры)
+  // длины сегментов (метры), рост ≈ 1.75
   const L = {
-    torso: 0.50, neck: 0.075, head: 0.115,
+    torso: 0.50, neck: 0.085, head: 0.098,
     upperArm: 0.30, foreArm: 0.255, hand: 0.185,
     thigh: 0.445, shin: 0.415, foot: 0.245,
   };
-  const shoulderHalf = 0.185, hipHalf = 0.092;
+  const shoulderHalf = 0.196, hipHalf = 0.088; // плечи ≈ 24% роста (мужской канон)
 
   const root = new THREE.Group();          // origin = таз
   const parts = {};
@@ -200,51 +207,70 @@ export function createAnatomy(opts = {}) {
   const torso = new THREE.Mesh(torsoGeometry(L.torso, bulge), suit);
   root.add(torso); parts.torso = torso;
 
-  // плечевой пояс: дельты
+  // грудь: точка крепления рук, шеи и головы
   const chestAnchor = new THREE.Group();
-  chestAnchor.position.y = L.torso;
+  chestAnchor.position.y = L.torso * 0.9;   // на уровне ключиц, не над макушкой торса
   root.add(chestAnchor); parts.chestAnchor = chestAnchor;
 
-  // шея и голова
-  const neck = new THREE.Mesh(loft(P.neck, L.neck, { rings: 8, radial: 14, bulge }), skin);
-  neck.position.y = L.neck;                 // origin сверху, растёт вниз → поднимаем
-  chestAnchor.add(neck); parts.neck = neck;
-  const head = new THREE.Mesh(headGeometry(L.head), skin);
-  head.position.y = L.neck + L.head * 0.92;
-  chestAnchor.add(head); parts.head = head;
+  // трапеции — плавный переход плечи → шея
+  const traps = new THREE.Mesh(loft([[0, 0.135, 0.09], [1, 0.07, 0.06]], 0.07, { rings: 8, radial: 16 }), suit);
+  traps.position.y = 0.07;
+  chestAnchor.add(traps);
 
-  // руки
+  // шея (растёт вверх от груди) и голова на ней
+  const neckGrp = new THREE.Group();
+  neckGrp.position.y = 0.055;
+  chestAnchor.add(neckGrp); parts.neck = neckGrp;
+  const neckMesh = new THREE.Mesh(loft(P.neck, L.neck, { rings: 8, radial: 14, bulge }), skin);
+  neckMesh.position.y = L.neck;             // origin лофта сверху → поднимаем на длину
+  neckGrp.add(neckMesh);
+  const headGrp = new THREE.Group();
+  headGrp.position.y = L.neck + L.head * 0.82;
+  neckGrp.add(headGrp); parts.head = headGrp;
+  headGrp.add(new THREE.Mesh(headGeometry(L.head), skin));
+
+  // руки: shoulder → (плечо) → elbow → (предплечье) → wrist → кисть
   for (const side of [-1, 1]) {
     const key = side < 0 ? "L" : "R";
+
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * shoulderHalf, -0.02, 0);
+    shoulder.position.set(side * shoulderHalf, 0.03, 0);
     chestAnchor.add(shoulder);
     parts["shoulder" + key] = shoulder;
 
-    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.062 * bulge, 18, 14), suit);
-    delta.scale.set(1, 1.05, 0.95);
+    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.058 * bulge, 18, 14), suit);
+    delta.scale.set(1.05, 1, 0.95);
     shoulder.add(delta);
 
     const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm, { bulge }), suit);
     shoulder.add(upper);
     parts["upperArm" + key] = upper;
 
+    const elbow = new THREE.Group();
+    elbow.position.y = -L.upperArm;
+    shoulder.add(elbow);
+    parts["elbow" + key] = elbow;
+
     const fore = new THREE.Mesh(loft(P.foreArm, L.foreArm, { bulge }), suit);
-    fore.position.y = -L.upperArm;
-    shoulder.add(fore);
+    elbow.add(fore);
     parts["foreArm" + key] = fore;
 
+    const wrist = new THREE.Group();
+    wrist.position.y = -L.foreArm;
+    elbow.add(wrist);
+    parts["wrist" + key] = wrist;
+
     const hand = handGroup(skin, L.hand);
-    hand.position.y = -L.upperArm - L.foreArm;
-    shoulder.add(hand);
+    wrist.add(hand);
     parts["hand" + key] = hand;
   }
 
-  // ноги
+  // ноги: hip → (бедро) → knee → (голень) → ankle → стопа
   for (const side of [-1, 1]) {
     const key = side < 0 ? "L" : "R";
+
     const hip = new THREE.Group();
-    hip.position.set(side * hipHalf, 0.01, 0);
+    hip.position.set(side * hipHalf, 0.02, 0);
     root.add(hip);
     parts["hip" + key] = hip;
 
@@ -252,14 +278,22 @@ export function createAnatomy(opts = {}) {
     hip.add(thigh);
     parts["thigh" + key] = thigh;
 
+    const knee = new THREE.Group();
+    knee.position.y = -L.thigh;
+    hip.add(knee);
+    parts["knee" + key] = knee;
+
     const shin = new THREE.Mesh(loft(P.shin, L.shin, { bulge }), suit);
-    shin.position.y = -L.thigh;
-    hip.add(shin);
+    knee.add(shin);
     parts["shin" + key] = shin;
 
+    const ankle = new THREE.Group();
+    ankle.position.y = -L.shin;
+    knee.add(ankle);
+    parts["ankle" + key] = ankle;
+
     const foot = footGroup(skin, L.foot);
-    foot.position.y = -L.thigh - L.shin;
-    hip.add(foot);
+    ankle.add(foot);
     parts["foot" + key] = foot;
   }
 
@@ -295,41 +329,66 @@ export function createAnatomy(opts = {}) {
     }
   }
 
-  // высота фигуры от стопы до макушки
-  const height = L.thigh + L.shin + L.torso + L.neck + L.head * 1.9;
+  // высота фигуры от стопы до макушки; голова в геометрии = 2.28 радиуса
+  const headHeight = L.head * 2.28;
+  const height = L.thigh + L.shin + L.torso * 0.9 + 0.055 + L.neck + headHeight * 0.55;
   root.position.y = L.thigh + L.shin; // поставить стопы в 0
 
-  return { root, parts, lengths: L, height, setSegmentColors, setBulge, materials: { suit, skin } };
+  return { root, parts, lengths: L, height, headHeight, setSegmentColors, setBulge, materials: { suit, skin } };
 }
 
 // ── позы для стенда ──
+// Вращаем суставы (shoulder/elbow/hip/knee/ankle), меши висят на них.
+function resetPose(p) {
+  for (const n of ["shoulderL", "shoulderR", "elbowL", "elbowR", "wristL", "wristR",
+                   "hipL", "hipR", "kneeL", "kneeR", "ankleL", "ankleR", "head", "neck"]) {
+    if (p[n]) p[n].rotation.set(0, 0, 0);
+  }
+}
 export const POSES = {
   "T-поза": p => {
-    p.shoulderL.rotation.set(0, 0, Math.PI / 2);
-    p.shoulderR.rotation.set(0, 0, -Math.PI / 2);
-    p.hipL.rotation.set(0, 0, 0); p.hipR.rotation.set(0, 0, 0);
-    p.foreArmL.rotation.set(0, 0, 0); p.foreArmR.rotation.set(0, 0, 0);
-    p.shinL.rotation.set(0, 0, 0); p.shinR.rotation.set(0, 0, 0);
+    resetPose(p);
+    p.shoulderL.rotation.z = Math.PI / 2;
+    p.shoulderR.rotation.z = -Math.PI / 2;
   },
   "Стойка": p => {
-    p.shoulderL.rotation.set(0.15, 0, 0.22);
-    p.shoulderR.rotation.set(0.15, 0, -0.22);
-    p.foreArmL.rotation.set(-0.35, 0, 0); p.foreArmR.rotation.set(-0.35, 0, 0);
-    p.hipL.rotation.set(-0.12, 0, 0.05); p.hipR.rotation.set(-0.12, 0, -0.05);
-    p.shinL.rotation.set(0.2, 0, 0); p.shinR.rotation.set(0.2, 0, 0);
+    resetPose(p);
+    // руки опущены вдоль тела, чуть отведены и слегка согнуты
+    p.shoulderL.rotation.set(0.08, 0, 0.12);
+    p.shoulderR.rotation.set(0.08, 0, -0.12);
+    p.elbowL.rotation.set(-0.22, 0, 0);
+    p.elbowR.rotation.set(-0.22, 0, 0);
+    p.hipL.rotation.set(-0.05, 0, 0.03);
+    p.hipR.rotation.set(-0.05, 0, -0.03);
+    p.kneeL.rotation.set(0.1, 0, 0);
+    p.kneeR.rotation.set(0.1, 0, 0);
   },
   "Сёрф-стойка": p => {
-    p.shoulderL.rotation.set(0.5, 0.2, 0.5);
-    p.shoulderR.rotation.set(0.2, -0.3, -0.7);
-    p.foreArmL.rotation.set(-0.7, 0, 0); p.foreArmR.rotation.set(-0.5, 0, 0);
-    p.hipL.rotation.set(-0.55, 0.35, 0.18); p.hipR.rotation.set(-0.5, -0.3, -0.2);
-    p.shinL.rotation.set(0.85, 0, 0); p.shinR.rotation.set(0.8, 0, 0);
+    resetPose(p);
+    // боковая стойка: колени согнуты, корпус собран, руки перед собой
+    p.shoulderL.rotation.set(0.75, 0.25, 0.42);
+    p.shoulderR.rotation.set(0.55, -0.35, -0.5);
+    p.elbowL.rotation.set(-0.95, 0, 0);
+    p.elbowR.rotation.set(-0.8, 0, 0);
+    p.hipL.rotation.set(-0.5, 0.3, 0.14);
+    p.hipR.rotation.set(-0.42, -0.28, -0.16);
+    p.kneeL.rotation.set(0.8, 0, 0);
+    p.kneeR.rotation.set(0.72, 0, 0);
+    p.ankleL.rotation.set(-0.3, 0, 0);
+    p.ankleR.rotation.set(-0.28, 0, 0);
+    p.head.rotation.y = 0.5;
   },
   "Присед": p => {
-    p.shoulderL.rotation.set(0.9, 0, 0.35);
-    p.shoulderR.rotation.set(0.9, 0, -0.35);
-    p.foreArmL.rotation.set(-0.6, 0, 0); p.foreArmR.rotation.set(-0.6, 0, 0);
-    p.hipL.rotation.set(-1.15, 0, 0.12); p.hipR.rotation.set(-1.15, 0, -0.12);
-    p.shinL.rotation.set(1.7, 0, 0); p.shinR.rotation.set(1.7, 0, 0);
+    resetPose(p);
+    p.shoulderL.rotation.set(1.05, 0, 0.3);
+    p.shoulderR.rotation.set(1.05, 0, -0.3);
+    p.elbowL.rotation.set(-0.7, 0, 0);
+    p.elbowR.rotation.set(-0.7, 0, 0);
+    p.hipL.rotation.set(-1.1, 0, 0.1);
+    p.hipR.rotation.set(-1.1, 0, -0.1);
+    p.kneeL.rotation.set(1.75, 0, 0);
+    p.kneeR.rotation.set(1.75, 0, 0);
+    p.ankleL.rotation.set(-0.65, 0, 0);
+    p.ankleR.rotation.set(-0.65, 0, 0);
   },
 };

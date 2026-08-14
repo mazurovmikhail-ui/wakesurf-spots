@@ -12,7 +12,7 @@ import * as THREE from "three";
 export const H = 1.75;
 
 // Отметка сборки — видно на стенде, чтобы отличать свежую версию от кеша браузера.
-export const VERSION = "9";
+export const VERSION = "10";
 
 // Профиль сегмента: [t вдоль длины 0..1, полуширина, полуглубина] в метрах.
 // Числа сняты замерами с анатомической модели реального человека
@@ -32,13 +32,13 @@ const P = {
 // Глубина взята с эталона: сечение торса у человека почти круглое
 // (глубина 80–90% ширины), а не плоское.
 const TORSO = [
-  [0, 0.148, 0.128],   // таз
-  [0.18, 0.138, 0.122],// низ живота
-  [0.4, 0.13, 0.118],  // талия
-  [0.6, 0.147, 0.128], // нижние рёбра
-  [0.8, 0.162, 0.136], // грудь
-  [0.9, 0.149, 0.113], // ключицы
-  [1, 0.08, 0.07],     // основание шеи
+  [0, 0.132, 0.115],   // таз (уже, чтобы не сливался с бёдрами)
+  [0.18, 0.128, 0.115],// низ живота
+  [0.4, 0.126, 0.114], // талия
+  [0.6, 0.144, 0.126], // нижние рёбра
+  [0.8, 0.158, 0.134], // грудь
+  [0.9, 0.145, 0.111], // ключицы
+  [1, 0.078, 0.068],   // основание шеи
 ];
 
 function lerpProfile(prof, t) {
@@ -285,14 +285,15 @@ export function createAnatomy(opts = {}) {
     const key = side < 0 ? "L" : "R";
 
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * shoulderHalf, 0.03, 0);
+    shoulder.position.set(side * shoulderHalf, 0.005, 0);
     chestAnchor.add(shoulder);
     parts["shoulder" + key] = shoulder;
 
-    // дельта: спускается на плечо вниз, а не торчит вверх наплечником
-    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.05 * bulge, 20, 16), suit);
-    delta.scale.set(0.95, 1.35, 0.9);
-    delta.position.y = -0.038;
+    // Дельта заведомо толще верха плеча (0.064), иначе она висит отдельным
+    // шаром, а рука начинается «из воздуха». Вытянута вниз по плечу.
+    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.074 * bulge, 20, 16), suit);
+    delta.scale.set(0.92, 1.15, 0.88);
+    delta.position.y = -0.03;
     shoulder.add(delta);
 
     const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm * OVER, { bulge }), suit);

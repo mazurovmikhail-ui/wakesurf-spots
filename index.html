@@ -215,6 +215,101 @@
     justify-content: center;
   }
 
+  /* ── Обложка спота (генеративная волна) ── */
+  .cover {
+    display: block;
+    width: calc(100% + 28px);
+    margin: -14px -14px 10px;
+    height: 74px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .page .cover { height: 150px; border-radius: var(--radius) var(--radius) 0 0; }
+
+  /* ── Полноэкранная страница спота ── */
+  .page-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1800;
+    background: var(--overlay);
+    display: none;
+    overflow-y: auto;
+    padding: 22px 14px 50px;
+  }
+  .page-overlay.open { display: block; }
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+  }
+  .page-inner { padding: 4px 22px 24px; }
+  .page h2 { font-family: "Unbounded", sans-serif; font-size: 17px; line-height: 1.35; margin: 14px 0 4px; padding-right: 90px; }
+  .page .p-sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .page .badges { margin-bottom: 14px; }
+  .page .row { font-size: 14px; margin: 9px 0; }
+  .page-close {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    background: var(--legend-bg);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 5px 11px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    z-index: 2;
+  }
+  .page-close:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .p-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .p-section h4 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .cmp-btn { position: absolute; right: 74px; top: 12px; z-index: 2; }
+
+  /* ── Сравнение спотов ── */
+  .cmp-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 1400;
+    background: var(--panel);
+    border: 1px solid var(--accent-dim);
+    border-radius: 999px;
+    padding: 8px 10px 8px 16px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 24px var(--shadow);
+    font-size: 13px;
+    max-width: 92vw;
+  }
+  .cmp-bar.show { display: flex; }
+  .cmp-bar b { color: var(--accent); }
+  .cmp-go {
+    background: var(--accent);
+    border: none;
+    color: var(--on-accent);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .cmp-go:disabled { opacity: .45; cursor: default; }
+  .cmp-clear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; font-family: inherit; padding: 0 4px; }
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .cmp-table th, .cmp-table td { border: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; line-height: 1.5; }
+  .cmp-table th { background: var(--panel-2); color: var(--muted); font-weight: 600; width: 26%; font-size: 12.5px; }
+  .cmp-table td { width: 37%; }
+  .cmp-wrap { overflow-x: auto; }
+  .badge.cmp-on { border-color: var(--accent); color: var(--accent); cursor: pointer; }
+
   /* ── Bottom sheet карточки (мобильный) ── */
   .sheet {
     position: fixed;
@@ -648,6 +743,16 @@
   <aside id="list"></aside>
 </main>
 
+<div class="page-overlay" id="pageOverlay">
+  <div class="page" id="pageBox"></div>
+</div>
+
+<div class="cmp-bar" id="cmpBar">
+  <span id="cmpText"></span>
+  <button class="cmp-go" id="cmpGo">Сравнить</button>
+  <button class="cmp-clear" id="cmpClear" title="Очистить">✕</button>
+</div>
+
 <div class="sheet" id="spotSheet" aria-hidden="true">
   <div class="sheet-grip"><span class="grip-bar"></span><button class="sheet-close" id="sheetClose" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body" id="sheetBody"></div>
@@ -767,6 +872,27 @@ const ICONS = {
 for (const [id, ic] of [["fTrain", "school"], ["fBoat", "boat"], ["fStay", "home"], ["fFav", "star"], ["btnGeo", "pin"]]) {
   const el = document.getElementById(id);
   el.innerHTML = ICONS[ic] + el.textContent;
+}
+
+// ── Генеративная обложка: волна в цвете региона, форма — из имени спота ──
+function coverSVG(s, big) {
+  const c = REGION_COLORS[s.region] || "#2dd4bf";
+  let h = 0;
+  for (const ch of s.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = n => ((h >> (n * 3)) & 15) / 15;
+  const W = 400, H = big ? 150 : 74;
+  const waves = [0, 1, 2].map(k => {
+    const amp = H * (0.1 + rnd(k) * 0.12);
+    const y = H * (0.42 + k * 0.19);
+    const ph = rnd(k + 3) * 120;
+    const w = 130 + rnd(k + 5) * 90;
+    let d = `M0 ${y + amp}`;
+    for (let x = 0; x <= W; x += 10) d += ` L${x} ${(y + Math.sin((x + ph) / w * Math.PI * 2) * amp).toFixed(1)}`;
+    return `<path d="${d} L${W} ${H} L0 ${H}Z" fill="${c}" opacity="${(0.34 - k * 0.09).toFixed(2)}"/>`;
+  }).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <rect width="${W}" height="${H}" fill="${c}" opacity=".1"/>${waves}</svg>`;
+  return `<img class="cover" alt="" src="data:image/svg+xml;utf8,${encodeURIComponent(svg)}">`;
 }
 
 const REGION_COLORS = {
@@ -971,6 +1097,8 @@ function cardHTML(s, i, pos = 0) {
   rows.push(`<div class="row"><span class="ico">${ICONS.check}</span><span class="val muted">данные проверены: ${checkedLabel(s)}</span></div>`);
   const fcBtn = (s.lat != null) ? `<button class="fc-btn" onclick="toggleForecast(event, ${i})">${ICONS.sun}Прогноз</button>` : "";
   const shareBtn = `<button class="fc-btn" onclick="shareSpot(event, ${i})">${ICONS.link}ссылка</button>`;
+  const pageBtn = `<button class="fc-btn" onclick="openPage(event, ${i})">Подробно</button>`;
+  const cmpBtn = `<button class="fc-btn" onclick="toggleCompare(event, ${i})">${CMP.has(i) ? "✓ в сравнении" : "+ к сравнению"}</button>`;
   const favBtn = `<span class="fav-btn ${FAVS.has(SLUGS[i]) ? "on" : ""}" onclick="toggleFav(event, ${i})" title="В избранное" role="button" tabindex="0">${ICONS.star}</span>`;
   const season = SEASON_NOW[i] === null ? "" :
     SEASON_NOW[i] ? ` · <span class="dot-season dot-on">●</span> сезон`
@@ -979,12 +1107,13 @@ function cardHTML(s, i, pos = 0) {
     ? ` · <span class="dist">${Math.round(distKm(state.userPos[0], state.userPos[1], s.lat, s.lon))} км</span>` : "";
   const ppm = PPM[i] != null ? `<span class="badge ppm">≈${PPM[i]} ₽/мин</span>` : "";
   return `<div class="card" id="card-${i}" data-i="${i}" style="animation-delay:${Math.min(pos * 28, 280)}ms">
+    ${coverSVG(s, false)}
     ${favBtn}
     <h3>${esc(s.name)}</h3>
     <div class="sub">${esc(s.city)} · ${esc(s.water || s.region)}${s.level ? " · " + esc(s.level) : ""}${season}${dist}</div>
     <div class="badges">${boats}${cable}${ppm}</div>
     ${rows.join("")}
-    <div class="links">${bookingLinks(s)}${fcBtn}${shareBtn}</div>
+    <div class="links">${bookingLinks(s)}${fcBtn}${pageBtn}${shareBtn}${cmpBtn}</div>
     <div class="forecast" id="fc-${i}" style="display:none"></div>
   </div>`;
 }
@@ -1049,6 +1178,126 @@ function highlight(i, fromList) {
 
 function focusCard(i) { highlight(i, false); }
 
+// ── Полноэкранная страница спота ──
+const pageOverlay = document.getElementById("pageOverlay");
+const pageBox = document.getElementById("pageBox");
+
+function fieldRows(s) {
+  const F = [
+    ["Акватория", s.water, ICONS.wave],
+    ["Волна", s.wave, ICONS.wave],
+    ["Цены", s.price, ICONS.tag],
+    ["Сезон", s.season, ICONS.calendar],
+    ["Обучение", s.training, ICONS.school],
+    ["Проживание", s.stay, ICONS.home],
+    ["Как добраться", s.address, ICONS.pin],
+    ["Ещё", s.notes, ICONS.bulb]
+  ];
+  return F.filter(f => f[1])
+    .map(f => `<div class="row"><span class="ico">${f[2]}</span><span class="val"><b style="color:var(--muted);font-weight:600">${f[0]}:</b> ${esc(f[1])}</span></div>`)
+    .join("");
+}
+
+function openPage(ev, i) {
+  if (ev) ev.stopPropagation();
+  const s = SPOTS[i];
+  const boats = (s.boats || []).map(b => `<span class="badge boat">${ICONS.boat}${esc(b)}</span>`).join("");
+  const ppm = PPM[i] != null ? `<span class="badge ppm">≈${PPM[i]} ₽/мин</span>` : "";
+  const cable = s.cable ? `<span class="badge cable">+ лебёдка</span>` : "";
+  const season = SEASON_NOW[i] === null ? "" :
+    SEASON_NOW[i] ? ` · <span class="dot-season dot-on">●</span> сейчас сезон` : ` · <span class="dot-season dot-off">●</span> не сезон`;
+  pageBox.innerHTML = `
+    <button class="page-close" id="pageClose">✕</button>
+    <button class="fc-btn cmp-btn" onclick="toggleCompare(event, ${i})">${CMP.has(i) ? "✓ в сравнении" : "+ сравнить"}</button>
+    ${coverSVG(s, true)}
+    <div class="page-inner">
+      <h2>${esc(s.name)}</h2>
+      <div class="p-sub">${esc(s.city)} · ${esc(s.region)}${season}</div>
+      <div class="badges">${boats}${cable}${ppm}</div>
+      ${fieldRows(s)}
+      <div class="p-section">
+        <h4>Запись и контакты</h4>
+        <div class="links">${bookingLinks(s)}</div>
+      </div>
+      ${s.lat != null ? `<div class="p-section">
+        <h4>Погода и вода</h4>
+        <div class="links"><button class="fc-btn" onclick="toggleForecast(event, ${i}, 'fcp-${i}')">${ICONS.sun}Показать прогноз</button></div>
+        <div class="forecast" id="fcp-${i}" style="display:none"></div>
+      </div>` : ""}
+      <div class="p-section">
+        <h4>Ссылка на спот</h4>
+        <div class="links"><button class="fc-btn" onclick="shareSpot(event, ${i})">${ICONS.link}Скопировать ссылку</button></div>
+        <div class="fc-note" style="margin-top:8px">Данные проверены: ${checkedLabel(s)}</div>
+      </div>
+    </div>`;
+  pageOverlay.classList.add("open");
+  pageOverlay.scrollTop = 0;
+  document.getElementById("pageClose").addEventListener("click", closePage);
+  history.replaceState(null, "", "#" + SLUGS[i]);
+}
+function closePage() {
+  pageOverlay.classList.remove("open");
+  if (location.hash) history.replaceState(null, "", location.pathname);
+  render();
+}
+pageOverlay.addEventListener("click", e => { if (e.target === pageOverlay) closePage(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePage(); });
+
+// ── Сравнение двух спотов ──
+const CMP = new Set();
+function toggleCompare(ev, i) {
+  ev.stopPropagation();
+  if (CMP.has(i)) CMP.delete(i);
+  else { if (CMP.size >= 2) CMP.delete(CMP.values().next().value); CMP.add(i); }
+  drawCmpBar();
+  render();
+  if (pageOverlay.classList.contains("open")) openPage(null, i);
+}
+function drawCmpBar() {
+  const bar = document.getElementById("cmpBar");
+  bar.classList.toggle("show", CMP.size > 0);
+  const names = [...CMP].map(i => SPOTS[i].name);
+  document.getElementById("cmpText").innerHTML = names.map(n => `<b>${esc(n)}</b>`).join(" · ");
+  document.getElementById("cmpGo").disabled = CMP.size < 2;
+}
+function showCompare() {
+  const [a, b] = [...CMP];
+  const A = SPOTS[a], B = SPOTS[b];
+  const rows = [
+    ["Город", A.city, B.city],
+    ["Акватория", A.water, B.water],
+    ["Катера", (A.boats || []).join(", "), (B.boats || []).join(", ")],
+    ["Волна", A.wave, B.wave],
+    ["Цены", A.price, B.price],
+    ["≈ ₽/мин", PPM[a] != null ? PPM[a] + " ₽" : null, PPM[b] != null ? PPM[b] + " ₽" : null],
+    ["Сезон", A.season, B.season],
+    ["Обучение", A.training, B.training],
+    ["Проживание", A.stay, B.stay],
+    ["Как добраться", A.address, B.address]
+  ];
+  pageBox.innerHTML = `
+    <button class="page-close" id="pageClose">✕</button>
+    <div class="page-inner">
+      <h2>Сравнение спотов</h2>
+      <div class="p-sub">${esc(A.name)} и ${esc(B.name)}</div>
+      <div class="cmp-wrap"><table class="cmp-table">
+        <tr><th></th><th style="color:var(--text)">${esc(A.name)}</th><th style="color:var(--text)">${esc(B.name)}</th></tr>
+        ${rows.map(r => `<tr><th>${r[0]}</th><td>${r[1] ? esc(r[1]) : "—"}</td><td>${r[2] ? esc(r[2]) : "—"}</td></tr>`).join("")}
+      </table></div>
+      <div class="p-section">
+        <div class="links">
+          <button class="fc-btn" onclick="openPage(event, ${a})">Открыть ${esc(A.name)}</button>
+          <button class="fc-btn" onclick="openPage(event, ${b})">Открыть ${esc(B.name)}</button>
+        </div>
+      </div>
+    </div>`;
+  pageOverlay.classList.add("open");
+  pageOverlay.scrollTop = 0;
+  document.getElementById("pageClose").addEventListener("click", closePage);
+}
+document.getElementById("cmpGo").addEventListener("click", showCompare);
+document.getElementById("cmpClear").addEventListener("click", () => { CMP.clear(); drawCmpBar(); render(); });
+
 // ── Bottom sheet: карточка спота поверх карты на телефоне ──
 function isMobile() { return window.matchMedia("(max-width: 800px)").matches; }
 const sheet = document.getElementById("spotSheet");
@@ -1106,9 +1355,9 @@ function wmoIcon(code) {
 function windClass(ms) { return ms <= 4 ? "fc-wind-ok" : ms <= 7 ? "fc-wind-mid" : "fc-wind-bad"; }
 const DAYS_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
 
-async function toggleForecast(ev, i) {
+async function toggleForecast(ev, i, boxId) {
   ev.stopPropagation();
-  const box = document.getElementById("fc-" + i);
+  const box = document.getElementById(boxId || "fc-" + i);
   if (box.style.display !== "none") { box.style.display = "none"; return; }
   box.style.display = "block";
   if (fcCache[i]) { box.innerHTML = fcCache[i]; return; }
@@ -1294,10 +1543,11 @@ function openFromHash() {
   if (i < 0) return;
   const s = SPOTS[i];
   highlight(i, false);
+  openPage(null, i);
   if (s.lat != null) {
     const mm = markers.find(m => m.i === i);
-    if (mm) cluster.zoomToShowLayer(mm.marker, () => mm.marker.openPopup());
-    else map.flyTo([s.lat, s.lon], 12, { duration: .8 });
+    if (mm) cluster.zoomToShowLayer(mm.marker);
+    else map.setView([s.lat, s.lon], 12);
   }
 }
 window.addEventListener("hashchange", openFromHash);

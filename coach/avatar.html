@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Реалистичный райдер — WakeCoach</title>
+<link rel="stylesheet" href="css/styles.css" />
+<style>
+  .vr-wrap { max-width: 960px; margin: 0 auto; padding: 22px 16px 60px; }
+  .stage3d { position: relative; border-radius: 16px; overflow: hidden;
+    background: radial-gradient(700px 500px at 50% 25%, #14324f 0%, #0b1120 72%);
+    border: 1px solid var(--line); height: 470px; }
+  .stage3d canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  .stage3d canvas:active { cursor: grabbing; }
+  .hint3d { position: absolute; left: 12px; top: 12px; font-size: 11px; color: var(--accent);
+    background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); padding: 3px 10px; border-radius: 999px; }
+  .ctrls { display: flex; gap: 14px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
+  .ctrls label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .scrub { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; flex-wrap: wrap; }
+  .scrub input[type=range] { flex: 1 1 220px; min-width: 160px; accent-color: var(--accent); }
+  .step-btn { background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 7px 12px; cursor: pointer; font-family: inherit; font-size: 14px; line-height: 1; }
+  .step-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .frame-badge { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .com-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+  .com-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .attrib { font-size: 11.5px; color: var(--muted); margin-top: 14px; }
+  .attrib a { color: var(--accent); }
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">🧑</span>
+      <div><h1>Реалистичный райдер</h1>
+        <p class="tagline">Видео → анатомическая 3D-модель человека на доске, которую можно крутить</p></div>
+    </div>
+    <div class="status" id="st">Инициализация…</div>
+    <a href="." style="color:#38bdf8;text-decoration:none;border:1px solid #263353;border-radius:10px;padding:6px 12px;font-size:13px;white-space:nowrap;">← WakeCoach</a>
+  </header>
+
+  <main class="vr-wrap">
+    <section class="panel">
+      <div class="uploads">
+        <div class="upload-card">
+          <label class="drop" id="drop">
+            <input type="file" id="file" accept="video/*" hidden />
+            <span class="drop-icon">🎬</span>
+            <span class="drop-title">Видео с трюком</span>
+            <span class="drop-hint">Оцифрую позу и надену её на 3D-человека</span>
+          </label>
+        </div>
+      </div>
+      <button id="demoBtn" class="ghost" style="margin-top:10px">▶︎ Демо на встроенном клипе</button>
+      <div class="progress-row" id="prog" hidden style="margin-top:16px">
+        <div class="progress-track"><div class="progress-fill" id="fill"></div></div><span id="plabel">0%</span>
+      </div>
+      <p class="muted" id="stage"></p>
+    </section>
+
+    <section class="panel" id="viewPanel" hidden>
+      <div class="stage3d"><span class="hint3d">крути мышкой · колесо — зум</span><canvas id="cv"></canvas></div>
+
+      <div class="scrub">
+        <button class="step-btn" id="stepBack" title="Кадр назад (←)">◀</button>
+        <button class="step-btn" id="play">⏸</button>
+        <button class="step-btn" id="stepFwd" title="Кадр вперёд (→)">▶</button>
+        <input type="range" id="scrubber" min="0" max="0" value="0" />
+        <span class="frame-badge" id="frameInfo"></span>
+      </div>
+
+      <div class="ctrls">
+        <button id="reset" class="ghost">⟲ Вид</button>
+        <label>Скорость <input id="speed" type="range" min="3" max="24" value="12" /></label>
+        <label>Сглаживание <input id="smooth" type="range" min="1" max="11" step="2" value="5" /></label>
+        <label>Глубина 3D <input id="depth" type="range" min="0" max="1" step="0.05" value="0.35" /></label>
+      </div>
+
+      <div class="com-legend">
+        <span><i style="background:#34d399"></i>вес по центру доски — устойчиво</span>
+        <span><i style="background:#fbbf24"></i>вес ушёл к носу или хвосту</span>
+        <span>Диск на деке — точка приложения веса, луч — линия от таза к ней.</span>
+      </div>
+
+      <p class="muted">Поза переносится на скелет модели: каждая кость наводится по направлению между суставами. Разбирайте технику по кадрам стрелками ← → и смотрите, куда уходит вес.</p>
+      <p class="attrib">Модель человека: RiggedFigure © 2017 Cesium, лицензия <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Доска и волна — наши.</p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initPose, extractSequence } from "./js/pose.js";
+    import { create } from "./js/riderAvatar.js";
+    const $ = (id) => document.getElementById(id);
+    let viewer = null, raw = null;
+
+    (async () => { try { await initPose(); setSt("Готово ✓","ready"); } catch(e){ setSt("Нет ML-движка (нужен интернет)","error"); } })();
+    function setSt(t,c=""){ $("st").textContent=t; $("st").className="status "+c; }
+    function prog(p,s){ $("prog").hidden=false; const pct=Math.round(p*100); $("fill").style.width=pct+"%"; $("plabel").textContent=pct+"%"; if(s)$("stage").textContent=s; }
+    function syncPlayBtn(){ if (viewer) $("play").textContent = viewer.isPlaying() ? "⏸" : "▶︎"; }
+    setInterval(syncPlayBtn, 400);
+
+    async function digitize(url) {
+      $("viewPanel").hidden = true;
+      const v = document.createElement("video"); v.src=url; v.muted=true; v.playsInline=true; v.crossOrigin="anonymous";
+      v.style.position="fixed"; v.style.left="-9999px"; document.body.appendChild(v);
+      await new Promise((res,rej)=>{ v.addEventListener("loadeddata",res,{once:true}); v.addEventListener("error",()=>rej(new Error("не открыть видео")),{once:true}); v.load(); });
+      prog(0,"Оцифровываю движение по кадрам…");
+      const fps = v.duration > 15 ? 8 : 12;
+      raw = await extractSequence(v, { fps, onProgress:(p)=>prog(p,"Оцифровываю движение по кадрам…") });
+      v.remove();
+      const good = raw.filter(f=>f.landmarks);
+      if (good.length < 4) { $("stage").textContent="⚠️ Райдер почти не распознан — нужен клип, где человек в кадре."; return; }
+      prog(1, `Готово: ${good.length} кадров. Крутите модель мышкой.`);
+      $("viewPanel").hidden = false;
+      if (!viewer) {
+        viewer = create($("cv"), {
+          onError: (e) => setSt("Модель не загрузилась", "error")
+        });
+        window.__v = viewer;
+        viewer.onFrame((i,n)=>{ $("frameInfo").textContent = `кадр ${i+1} / ${n}`; const sc=$("scrubber"); sc.max=n-1; sc.value=i; });
+      }
+      viewer.setFrames(raw, +$("smooth").value);
+      $("scrubber").max = Math.max(0, viewer.frameCount() - 1);
+      viewer.setSpeed(+$("speed").value); viewer.play();
+    }
+
+    $("drop").addEventListener("click",()=>$("file").click());
+    $("file").addEventListener("change",()=>{ if($("file").files[0]) digitize(URL.createObjectURL($("file").files[0])); });
+    $("demoBtn").addEventListener("click",()=> digitize("assets/sample_5382566.mp4"));
+    $("play").addEventListener("click",()=>{ if(viewer){ viewer.toggle(); syncPlayBtn(); }});
+    $("stepBack").addEventListener("click",()=>{ if(viewer){ viewer.step(-1); syncPlayBtn(); }});
+    $("stepFwd").addEventListener("click",()=>{ if(viewer){ viewer.step(1); syncPlayBtn(); }});
+    $("scrubber").addEventListener("input",e=>{ if(viewer){ viewer.seek(+e.target.value); syncPlayBtn(); }});
+    $("reset").addEventListener("click",()=> viewer && viewer.resetView());
+    $("speed").addEventListener("input",e=> viewer && viewer.setSpeed(+e.target.value));
+    $("smooth").addEventListener("input",e=>{ if(viewer&&raw){ viewer.setFrames(raw, +e.target.value); viewer.setDepth(+$("depth").value); } });
+    $("depth").addEventListener("input",e=>{ if(viewer) viewer.setDepth(+e.target.value); });
+    document.addEventListener("keydown", e => {
+      if (!viewer || !viewer.frameCount()) return;
+      if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
+      if (e.key === "ArrowLeft") { viewer.step(-1); syncPlayBtn(); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { viewer.step(1); syncPlayBtn(); e.preventDefault(); }
+      else if (e.key === " ") { viewer.toggle(); syncPlayBtn(); e.preventDefault(); }
+    });
+  </script>
+</body>
+</html>

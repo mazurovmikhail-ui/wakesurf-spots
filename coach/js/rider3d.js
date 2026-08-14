@@ -4,6 +4,7 @@
 // Требует import map в HTML: "three" и "three/addons/".
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { makeBoard, BOARD_TH as DECK_TH } from "./board3d.js";
 
 const BONES = [
   [11, 12], [11, 23], [12, 24], [23, 24],
@@ -15,33 +16,6 @@ const ACCENT = 0x38bdf8, JOINTC = 0x22d3ee;
 
 function toVec(p) { return new THREE.Vector3(p.x, -p.y, -p.z); }
 function mid(a, b) { return a.clone().add(b).multiplyScalar(0.5); }
-
-// ---- реальная доска (форма сёрфа) как Group ----
-function makeBoard() {
-  const L = 1.0, W = 0.30, w = W / 2, th = 0.045;
-  const s = new THREE.Shape();
-  s.moveTo(-L / 2, 0);
-  s.bezierCurveTo(-L / 2, w, -L / 4, w, 0, w);
-  s.bezierCurveTo(L / 3, w, L / 2, w * 0.35, L / 2, 0);
-  s.bezierCurveTo(L / 2, -w * 0.35, L / 3, -w, 0, -w);
-  s.bezierCurveTo(-L / 4, -w, -L / 2, -w, -L / 2, 0);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, steps: 1 });
-  geo.rotateX(-Math.PI / 2); geo.translate(0, th / 2, 0); // положить плоско
-  const deck = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x2f8fce, roughness: 0.35, metalness: 0.15, emissive: 0x0a2f47, emissiveIntensity: 0.4 }));
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(L * 0.9, 0.005, 0.02), new THREE.MeshStandardMaterial({ color: 0x8fd6ff, emissive: 0x2a6f92, emissiveIntensity: 0.6 }));
-  stripe.position.y = th + 0.005;
-  const group = new THREE.Group(); group.add(deck, stripe);
-  // фины снизу у хвоста
-  const finMat = new THREE.MeshStandardMaterial({ color: 0x14364f, roughness: 0.5 });
-  for (const dz of [-0.09, 0.09, 0]) {
-    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 4), finMat);
-    fin.rotation.x = Math.PI; fin.rotation.y = Math.PI / 4;
-    fin.position.set(-L / 2 + 0.14, -0.05, dz === 0 ? 0 : dz);
-    if (dz === 0) fin.position.x = -L / 2 + 0.06;
-    group.add(fin);
-  }
-  return group;
-}
 
 // ---- образ волны: изогнутая стенка + вода ----
 function makeWaveAndWater(feetY) {
@@ -138,7 +112,7 @@ export function create(canvas) {
   };
   handMesh[15].scale.set(1, 0.75, 0.55); handMesh[16].scale.set(1, 0.75, 0.55);
   figure.add(handMesh[15], handMesh[16]);
-  const FOOT_H = 0.05, BOARD_TH = 0.045; // высота стопы и толщина деки — для стыковки
+  const FOOT_H = 0.05, BOARD_TH = DECK_TH; // высота стопы и толщина деки — для стыковки
   const footMesh = { 27: new THREE.Mesh(new THREE.BoxGeometry(0.085, FOOT_H, 0.2), suit), 28: new THREE.Mesh(new THREE.BoxGeometry(0.085, FOOT_H, 0.2), suit) };
   figure.add(footMesh[27], footMesh[28]);
 
@@ -284,7 +258,7 @@ export function create(canvas) {
         footMesh[27].visible ? footMesh[27].position.y : Infinity,
         footMesh[28].visible ? footMesh[28].position.y : Infinity
       ) - FOOT_H / 2;
-      board.position.y = soleY - BOARD_TH;
+      board.position.y = soleY - BOARD_TH / 2;
       if (hipOk) {
         const shOk = vis(lm, 11) && vis(lm, 12);
         const com = shOk ? mid(gp(23), gp(24)).multiplyScalar(0.6).add(mid(gp(11), gp(12)).multiplyScalar(0.4)) : mid(gp(23), gp(24));
@@ -292,7 +266,7 @@ export function create(canvas) {
         let t = ab.lengthSq() > 1e-6 ? com.clone().sub(A).dot(ab) / ab.lengthSq() : 0.5;
         t = Math.max(0, Math.min(1, t));
         const foot = A.clone().add(ab.clone().multiplyScalar(t));
-        foot.y = board.position.y + BOARD_TH + 0.012; // диск давления — на деке
+        foot.y = board.position.y + BOARD_TH / 2 + 0.012; // диск давления — на деке
         disc.position.copy(foot);
         const dev = Math.min(1, Math.abs(t - 0.5) * 2.2);
         const col = cGreen.clone().lerp(cWarn, dev);

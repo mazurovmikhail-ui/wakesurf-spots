@@ -12,7 +12,7 @@ import * as THREE from "three";
 export const H = 1.75;
 
 // Отметка сборки — видно на стенде, чтобы отличать свежую версию от кеша браузера.
-export const VERSION = "10";
+export const VERSION = "14";
 
 // Профиль сегмента: [t вдоль длины 0..1, полуширина, полуглубина] в метрах.
 // Числа сняты замерами с анатомической модели реального человека
@@ -20,11 +20,11 @@ export const VERSION = "10";
 // измерены обхваты и приведены к росту 1.75 м. Ключевое из замеров:
 // нога в сечении вытянута спереди-назад (глубина > ширины), а не круглая.
 const P = {
-  upperArm: [[0, 0.064, 0.06], [0.18, 0.06, 0.056], [0.45, 0.051, 0.048], [0.8, 0.045, 0.042], [1, 0.042, 0.039]],
-  foreArm: [[0, 0.048, 0.046], [0.25, 0.05, 0.047], [0.6, 0.04, 0.037], [1, 0.029, 0.026]],
-  thigh: [[0, 0.1, 0.104], [0.25, 0.094, 0.096], [0.6, 0.082, 0.084], [1, 0.072, 0.074]],
+  upperArm: [[0, 0.075, 0.071], [0.18, 0.071, 0.067], [0.45, 0.061, 0.057], [0.8, 0.053, 0.05], [1, 0.05, 0.047]],
+  foreArm: [[0, 0.057, 0.054], [0.25, 0.059, 0.056], [0.6, 0.047, 0.044], [1, 0.035, 0.032]],
+  thigh: [[0, 0.088, 0.092], [0.25, 0.084, 0.087], [0.6, 0.075, 0.078], [1, 0.068, 0.07]],
   shin: [[0, 0.075, 0.077], [0.22, 0.073, 0.076], [0.45, 0.063, 0.067], [0.78, 0.045, 0.052], [1, 0.039, 0.047]],
-  neck: [[0, 0.058, 0.055], [1, 0.052, 0.049]],
+  neck: [[0, 0.068, 0.064], [1, 0.06, 0.057]],
 };
 
 // торс: сечения снизу вверх [t, полуширина, полуглубина].
@@ -32,13 +32,13 @@ const P = {
 // Глубина взята с эталона: сечение торса у человека почти круглое
 // (глубина 80–90% ширины), а не плоское.
 const TORSO = [
-  [0, 0.132, 0.115],   // таз (уже, чтобы не сливался с бёдрами)
-  [0.18, 0.128, 0.115],// низ живота
-  [0.4, 0.126, 0.114], // талия
-  [0.6, 0.144, 0.126], // нижние рёбра
-  [0.8, 0.158, 0.134], // грудь
-  [0.9, 0.145, 0.111], // ключицы
-  [1, 0.078, 0.068],   // основание шеи
+  [0, 0.098, 0.09],    // низ таза: узкий, иначе торс накрывает бёдра «юбкой»
+  [0.16, 0.122, 0.11], // низ живота
+  [0.38, 0.104, 0.096],// талия — заметное сужение, иначе торс читается бочкой
+  [0.6, 0.142, 0.124], // нижние рёбра
+  [0.8, 0.165, 0.138], // грудь
+  [0.9, 0.138, 0.108], // ключицы — уже, чтобы дельты выступали за силуэт
+  [1, 0.082, 0.072],   // основание шеи
 ];
 
 function lerpProfile(prof, t) {
@@ -160,9 +160,9 @@ function headGeometry(size) {
 // кисть: ладонь + большой палец + масса пальцев
 function handGroup(mat, len) {
   const grp = new THREE.Group();
-  const palm = new THREE.Mesh(loft([[0, 0.036, 0.016], [0.5, 0.038, 0.017], [1, 0.034, 0.015]], len * 0.55, { rings: 8, radial: 14 }), mat);
+  const palm = new THREE.Mesh(loft([[0, 0.045, 0.021], [0.5, 0.048, 0.022], [1, 0.043, 0.02]], len * 0.55, { rings: 8, radial: 14 }), mat);
   grp.add(palm);
-  const fingers = new THREE.Mesh(loft([[0, 0.033, 0.015], [0.7, 0.028, 0.013], [1, 0.02, 0.009]], len * 0.45, { rings: 8, radial: 12 }), mat);
+  const fingers = new THREE.Mesh(loft([[0, 0.042, 0.02], [0.7, 0.036, 0.017], [1, 0.026, 0.012]], len * 0.45, { rings: 8, radial: 12 }), mat);
   fingers.position.y = -len * 0.55;
   grp.add(fingers);
   const thumb = new THREE.Mesh(loft([[0, 0.014, 0.013], [1, 0.011, 0.01]], len * 0.34, { rings: 6, radial: 10 }), mat);
@@ -173,29 +173,31 @@ function handGroup(mat, len) {
 }
 
 // стопа: вытянутый клин со сводом, пятка сзади, носок ниже — без «мячей»
+// Стопа: контур вида сверху, выдавленный по высоте со скруглением. Лофт здесь
+// давал заострённые сечения, и при повороте стопа превращалась в «когти».
 function footGroup(mat, len) {
   const grp = new THREE.Group();
-  // подъём стопы — заходит вверх к щиколотке, чтобы не было зазора
-  const instep = new THREE.Mesh(
-    loft([[0, 0.043, 0.042], [1, 0.04, 0.05]], 0.075, { rings: 6, radial: 14 }),
-    mat
-  );
-  instep.position.y = 0.045;
+  const W = 0.048;                       // полуширина в самой широкой части
+  const s = new THREE.Shape();
+  s.moveTo(0, -len * 0.32);              // пятка
+  s.bezierCurveTo(W * 0.75, -len * 0.32, W * 0.9, -len * 0.05, W * 0.92, len * 0.2);
+  s.bezierCurveTo(W * 0.95, len * 0.5, W * 0.7, len * 0.68, 0, len * 0.68); // носок
+  s.bezierCurveTo(-W * 0.7, len * 0.68, -W * 0.95, len * 0.5, -W * 0.92, len * 0.2);
+  s.bezierCurveTo(-W * 0.9, -len * 0.05, -W * 0.75, -len * 0.32, 0, -len * 0.32);
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth: 0.052, bevelEnabled: true, bevelThickness: 0.016, bevelSize: 0.014, bevelSegments: 3, steps: 1
+  });
+  geo.rotateX(-Math.PI / 2);             // положить горизонтально: длина по +Z
+  geo.translate(0, -0.03, 0);
+  const foot = new THREE.Mesh(geo, mat);
+  foot.rotation.x = -0.06;               // носок чуть приподнят
+  grp.add(foot);
+
+  // подъём — заходит вверх к щиколотке, стык закрыт
+  const instep = new THREE.Mesh(new THREE.SphereGeometry(0.047, 16, 12), mat);
+  instep.scale.set(0.95, 0.85, 1.15);
+  instep.position.set(0, 0.006, 0.012);
   grp.add(instep);
-
-  const sole = new THREE.Mesh(
-    loft([[0, 0.041, 0.034], [0.3, 0.045, 0.03], [0.7, 0.042, 0.022], [1, 0.031, 0.015]], len, { rings: 14, radial: 16, squash: 0.72 }),
-    mat
-  );
-  // положить горизонтально: длина идёт вперёд (+Z), носок чуть приподнят
-  sole.rotation.x = Math.PI / 2 - 0.08;
-  sole.position.set(0, -0.012, 0.028);
-  grp.add(sole);
-
-  const heel = new THREE.Mesh(loft([[0, 0.037, 0.032], [1, 0.03, 0.028]], 0.06, { rings: 6, radial: 12 }), mat);
-  heel.position.set(0, -0.005, -0.032);
-  heel.rotation.x = -0.3;
-  grp.add(heel);
   return grp;
 }
 
@@ -213,21 +215,22 @@ export function createAnatomy(opts = {}) {
 
   // длины сегментов (метры), рост ≈ 1.75
   const L = {
-    torso: 0.50, neck: 0.105, head: 0.10,
+    torso: 0.50, neck: 0.082, head: 0.10,
     upperArm: 0.315, foreArm: 0.27, hand: 0.185,
-    thigh: 0.445, shin: 0.415, foot: 0.205,
+    thigh: 0.445, shin: 0.415, foot: 0.235,
   };
   // Сегмент строго до сустава: удлинение приводило к тому, что тонкий конец
   // бедра протыкал голень и наружу торчала его изнанка. Стыки закрывают
   // суставные объёмы, они заведомо толще концов соседних сегментов.
   const OVER = 1.0;
-  const shoulderHalf = 0.192, hipHalf = 0.088; // с учётом дельт даёт ≈ 23–24% роста
+  const shoulderHalf = 0.208, hipHalf = 0.088; // с учётом дельт даёт ≈ 24% роста
 
   const root = new THREE.Group();          // origin = таз
   const parts = {};
 
   // торс
   const torso = new THREE.Mesh(torsoGeometry(L.torso, bulge), suit);
+  torso.position.y = 0.035;   // корпус начинается выше паха, таз лепят ягодичные объёмы
   root.add(torso); parts.torso = torso;
 
   // Мышечный рельеф корпуса: грудные, широчайшие, ягодицы. Отдельные объёмы
@@ -285,15 +288,15 @@ export function createAnatomy(opts = {}) {
     const key = side < 0 ? "L" : "R";
 
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * shoulderHalf, 0.005, 0);
+    shoulder.position.set(side * shoulderHalf, 0.028, 0);
     chestAnchor.add(shoulder);
     parts["shoulder" + key] = shoulder;
 
     // Дельта заведомо толще верха плеча (0.064), иначе она висит отдельным
     // шаром, а рука начинается «из воздуха». Вытянута вниз по плечу.
-    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.074 * bulge, 20, 16), suit);
-    delta.scale.set(0.92, 1.15, 0.88);
-    delta.position.y = -0.03;
+    const delta = new THREE.Mesh(new THREE.SphereGeometry(0.086 * bulge, 22, 18), suit);
+    delta.scale.set(1.0, 0.95, 0.88);
+    delta.position.y = -0.022;
     shoulder.add(delta);
 
     const upper = new THREE.Mesh(loft(P.upperArm, L.upperArm * OVER, { bulge }), suit);
@@ -334,8 +337,8 @@ export function createAnatomy(opts = {}) {
     parts["hip" + key] = hip;
 
     // ягодичный/тазобедренный объём закрывает стык бедра с корпусом
-    const hipBall = new THREE.Mesh(new THREE.SphereGeometry(0.105 * bulge, 20, 16), suit);
-    hipBall.scale.set(1, 0.92, 0.95);
+    const hipBall = new THREE.Mesh(new THREE.SphereGeometry(0.092 * bulge, 20, 16), suit);
+    hipBall.scale.set(1, 0.9, 0.95);
     hip.add(hipBall);
 
     const thigh = new THREE.Mesh(loft(P.thigh, L.thigh * OVER, { bulge }), suit);
@@ -347,8 +350,8 @@ export function createAnatomy(opts = {}) {
     hip.add(knee);
     parts["knee" + key] = knee;
 
-    const kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.078 * bulge, 20, 16), suit);
-    kneeBall.scale.set(1, 0.95, 1);
+    const kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.084 * bulge, 20, 16), suit);
+    kneeBall.scale.set(1, 1.05, 1);
     knee.add(kneeBall);
 
     const shin = new THREE.Mesh(loft(P.shin, L.shin * OVER, { bulge }), suit);

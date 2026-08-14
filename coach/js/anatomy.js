@@ -11,6 +11,9 @@ import * as THREE from "three";
 // рост-ориентир: 1.75 м. Все размеры — доли от него.
 export const H = 1.75;
 
+// Отметка сборки — видно на стенде, чтобы отличать свежую версию от кеша браузера.
+export const VERSION = "7";
+
 // Профиль сегмента: [t вдоль длины 0..1, полуширина, полуглубина] в метрах.
 // Числа сняты замерами с анатомической модели реального человека
 // (Visible Human male, HuBMAP HRA, CC BY 4.0): для каждого уровня по высоте
@@ -203,8 +206,10 @@ function footGroup(mat, len) {
 export function createAnatomy(opts = {}) {
   const bulge = opts.bulge ?? 1;
 
-  const suit = new THREE.MeshStandardMaterial({ color: 0x232f3d, roughness: 0.52, metalness: 0.1, emissive: 0x0a1119, emissiveIntensity: 0.45 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xd7b596, roughness: 0.72, metalness: 0.02, emissive: 0x2a1d13, emissiveIntensity: 0.22 });
+  // DoubleSide: если геометрия где-то вывернута или соседний объём просвечивает,
+  // изнанка не светится белёсыми клиньями, а выглядит как тот же материал.
+  const suit = new THREE.MeshStandardMaterial({ color: 0x232f3d, roughness: 0.52, metalness: 0.1, emissive: 0x0a1119, emissiveIntensity: 0.45, side: THREE.DoubleSide });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd7b596, roughness: 0.72, metalness: 0.02, emissive: 0x2a1d13, emissiveIntensity: 0.22, side: THREE.DoubleSide });
 
   // длины сегментов (метры), рост ≈ 1.75
   const L = {
@@ -212,9 +217,10 @@ export function createAnatomy(opts = {}) {
     upperArm: 0.30, foreArm: 0.255, hand: 0.185,
     thigh: 0.445, shin: 0.415, foot: 0.245,
   };
-  // Сегменты рисуем длиннее сустава, чтобы они заходили друг в друга и
-  // тело не рассыпалось на отдельные детали при сгибе.
-  const OVER = 1.13;
+  // Сегмент строго до сустава: удлинение приводило к тому, что тонкий конец
+  // бедра протыкал голень и наружу торчала его изнанка. Стыки закрывают
+  // суставные объёмы, они заведомо толще концов соседних сегментов.
+  const OVER = 1.0;
   const shoulderHalf = 0.196, hipHalf = 0.088; // плечи ≈ 24% роста (мужской канон)
 
   const root = new THREE.Group();          // origin = таз
@@ -297,9 +303,9 @@ export function createAnatomy(opts = {}) {
     shoulder.add(elbow);
     parts["elbow" + key] = elbow;
 
-    // шар сустава закрывает стык сегментов при любом угле сгиба
-    const elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.047 * bulge, 16, 12), suit);
-    elbowBall.scale.z = 0.92;
+    // шар сустава заведомо толще концов соседних сегментов — стык всегда закрыт
+    const elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.052 * bulge, 18, 14), suit);
+    elbowBall.scale.z = 0.95;
     elbow.add(elbowBall);
 
     const fore = new THREE.Mesh(loft(P.foreArm, L.foreArm * OVER, { bulge }), suit);
@@ -326,8 +332,8 @@ export function createAnatomy(opts = {}) {
     parts["hip" + key] = hip;
 
     // ягодичный/тазобедренный объём закрывает стык бедра с корпусом
-    const hipBall = new THREE.Mesh(new THREE.SphereGeometry(0.088 * bulge, 18, 14), suit);
-    hipBall.scale.set(1, 0.95, 0.95);
+    const hipBall = new THREE.Mesh(new THREE.SphereGeometry(0.105 * bulge, 20, 16), suit);
+    hipBall.scale.set(1, 0.92, 0.95);
     hip.add(hipBall);
 
     const thigh = new THREE.Mesh(loft(P.thigh, L.thigh * OVER, { bulge }), suit);
@@ -339,8 +345,8 @@ export function createAnatomy(opts = {}) {
     hip.add(knee);
     parts["knee" + key] = knee;
 
-    const kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.062 * bulge, 18, 14), suit);
-    kneeBall.scale.set(1, 0.92, 0.98);
+    const kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.078 * bulge, 20, 16), suit);
+    kneeBall.scale.set(1, 0.95, 1);
     knee.add(kneeBall);
 
     const shin = new THREE.Mesh(loft(P.shin, L.shin * OVER, { bulge }), suit);
@@ -352,7 +358,7 @@ export function createAnatomy(opts = {}) {
     knee.add(ankle);
     parts["ankle" + key] = ankle;
 
-    const ankleBall = new THREE.Mesh(new THREE.SphereGeometry(0.042 * bulge, 14, 12), suit);
+    const ankleBall = new THREE.Mesh(new THREE.SphereGeometry(0.05 * bulge, 16, 12), suit);
     ankle.add(ankleBall);
 
     const foot = footGroup(skin, L.foot);

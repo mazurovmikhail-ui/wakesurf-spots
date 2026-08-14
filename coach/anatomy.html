@@ -35,7 +35,7 @@
   <header class="topbar">
     <div class="brand"><span class="logo">🧍</span>
       <div><h1>Анатомическая модель</h1>
-        <p class="tagline">Стенд для доводки: пропорции, мышечные объёмы, позы</p></div>
+        <p class="tagline">Стенд для доводки: пропорции, мышечные объёмы, позы <span id="ver" style="opacity:.65"></span></p></div>
     </div>
     <a href="." style="color:#38bdf8;text-decoration:none;border:1px solid #263353;border-radius:10px;padding:6px 12px;font-size:13px;white-space:nowrap;">← WakeCoach</a>
   </header>
@@ -87,7 +87,7 @@
   <script type="module">
     import * as THREE from "three";
     import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    import { createAnatomy, POSES } from "./js/anatomy.js";
+    import { createAnatomy, POSES, VERSION } from "./js/anatomy.js?v=7";
 
     const $ = id => document.getElementById(id);
     const canvas = $("cv");
@@ -107,6 +107,7 @@
       new THREE.MeshStandardMaterial({ color: 0x0e2233, roughness: 0.9, metalness: 0.05 }));
     floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
+    document.getElementById("ver").textContent = "· сборка " + VERSION;
     const model = createAnatomy({ bulge: 1 });
     scene.add(model.root);
     window.__m = model;
